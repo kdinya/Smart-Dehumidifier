@@ -1,55 +1,71 @@
 # Smart Dehumidifier
 
-Версія **1.3.3**
+Версія **1.3.4**
 
-## Чому раніше треба було додавати ресурс вручну?
+Кастомна інтеграція Home Assistant + Lovelace-картка.
 
-Home Assistant **окремо** тримає:
-1. **Інтеграції** (backend, entity) — ставляться через HACS Integration
-2. **Lovelace-картки** (frontend JS) — мають бути в Resources
+## Структура репозиторію
 
-HACS при категорії Integration **не** додає JS-картку в Resources автоматично. Тому інтеграція сама:
-- віддає файли по URL
-- **копіює** картку в `/config/www/smart_dehumidifier/`
-- **сама додає** ресурс у Lovelace (storage mode)
+```
+Smart-Dehumidifier/
+├── custom_components/
+│   └── smart_dehumidifier/          ← інтеграція (HACS Integration)
+│       ├── __init__.py
+│       ├── config_flow.py
+│       ├── frontend.py              ← реєстрація картки
+│       ├── sensor.py / switch.py / number.py / button.py
+│       ├── manifest.json
+│       └── www/                     ← файли картки
+│           ├── index.js             ← точка входу
+│           ├── dehumidifier-card.js
+│           ├── dehumidifier-editor.js
+│           ├── components/
+│           ├── files/
+│           └── fonts/
+├── package/                         ← опційний YAML (не обов’язково)
+├── hacs.json
+├── README.md
+└── LICENSE
+```
+
+Після встановлення HACS кладе інтеграцію сюди:
+
+```
+/config/custom_components/smart_dehumidifier/
+```
+
+Картка також копіюється сюди (для `/local/`):
+
+```
+/config/www/smart_dehumidifier/index.js
+```
+
+## URL ресурсу картки
+
+| URL | Звідки |
+|-----|--------|
+| `/local/smart_dehumidifier/index.js` | копія в `config/www/` (надійніше) |
+| `/smart_dehumidifier_static/index.js` | напряму з `custom_components/.../www/` |
 
 ## Встановлення
 
 1. HACS → Custom repositories → `https://github.com/kdinya/Smart-Dehumidifier`
 2. Category: **Integration**
-3. Download → **перезавантаж Home Assistant**
+3. Download → **повний restart** Home Assistant
 4. Settings → Devices & services → Add Integration → **Smart Dehumidifier**
-5. Ще раз **перезавантаж HA** (щоб ресурс і `/local/` підхопились)
-6. У браузері **Ctrl+F5**
+5. Ctrl+F5 у браузері
 
-Картка має підключитись **сама**.
+### Якщо «Custom element not found»
 
-### Якщо все ж «Custom element not found»
-
-Перевір у браузері (має відкритись JS):
-
-```
-http://IP:8123/local/smart_dehumidifier/index.js
-```
-
-або
-
-```
-http://IP:8123/smart_dehumidifier_static/index.js
-```
-
-Якщо 404 на обох — інтеграція не завантажилась. Дивись логи.
-
-Якщо JS відкривається, додай ресурс один раз:
-
-**Settings → Dashboards → Resources**
+1. Відкрий: `http://IP:8123/local/smart_dehumidifier/index.js` — має бути JS
+2. Settings → Dashboards → Resources → Add:
 
 ```
 URL:  /local/smart_dehumidifier/index.js
 Type: JavaScript Module
 ```
 
-Потім Ctrl+F5.
+3. Ctrl+F5
 
 ## Картка
 
@@ -58,8 +74,6 @@ type: custom:smart-dehumidifier
 entity: humidifier.bathroom
 fan_entity: switch.bathroom_fan
 ```
-
-Інші entity — у візуальному редакторі.
 
 ## Ліцензія
 
