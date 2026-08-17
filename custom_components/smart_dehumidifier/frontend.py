@@ -1,13 +1,4 @@
-"""Serve Lovelace card directly from the integration folder.
-
-Source on disk (HACS installs here):
-  /config/custom_components/smart_dehumidifier/www/
-
-Browser URL (HTTP, not a file path):
-  /smart_dehumidifier_files/index.js
-
-No copy to /config/www required.
-"""
+"""Serve Lovelace card + auto-register/update resource with ?v=VERSION."""
 
 from __future__ import annotations
 
@@ -21,72 +12,59 @@ from .const import DOMAIN, VERSION
 
 _LOGGER = logging.getLogger(__name__)
 
-# HTTP path registered via StaticPathConfig → points at www/ inside the integration
 URL_BASE = f"/{DOMAIN}_files"
 CARD_URL = f"{URL_BASE}/index.js"
 CARD_URL_VERSIONED = f"{CARD_URL}?v={VERSION}"
 
-_registered = False
+_registered_path = False
 
 
 async def async_register_frontend(hass: HomeAssistant) -> None:
-    """Register static HTTP path + Lovelace resource (idempotent)."""
-    global _registered
-    if _registered:
-        return
+    """Register static path and ensure Lovelace resource has current ?v=."""
+    global _registered_path
 
     src = Path(__file__).resolve().parent / "www"
-    if not src.is_dir():
-        _LOGGER.error("Card folder missing: %s", src)
+    if not src.is_dir() or not (src / "index.js").is_file():
+        _LOGGER.error("Card www/ missing at %s", src)
         return
 
-    index = src / "index.js"
-    if not index.is_file():
-        _LOGGER.error("Card entry missing: %s", index)
-        return
+    if not _registered_path:
+        try:
+            from homeassistant.components.http import StaticPathConfig
 
-    # 1) Serve files over HTTP from the integration's www/ folder
-    try:
-        from homeassistant.components.http import StaticPathConfig
+            await hass.http.async_register_static_paths(
+                [StaticPathConfig(URL_BASE, str(src), False)]
+            )
+            _registered_path = True
+            _LOGGER.warning("SD card static path %s → %s", URL_BASE, src)
+        except Exception as err:
+            if "already" in str(err).lower() or "exists" in str(err).lower():
+                _registered_path = True
+            else:
+                _LOGGER.exception("Static path failed: %s", err)
+                return
 
-        await hass.http.async_register_static_paths(
-            [StaticPathConfig(URL_BASE, str(src), False)]
-        )
-        _LOGGER.warning(
-            "Smart Dehumidifier card URL: %s  (files from %s)",
-            CARD_URL,
-            src,
-        )
-        _registered = True
-    except Exception as err:
-        msg = str(err).lower()
-        if "already" in msg or "exists" in msg:
-            _registered = True
-            _LOGGER.debug("Static path already registered: %s", URL_BASE)
-        else:
-            _LOGGER.exception("Failed to register static path %s: %s", URL_BASE, err)
-            return
+    async def _ensure(_now=None) -> None:
+        await _async_ensure_resource(hass)
 
-    # 2) Auto-add Lovelace resource (after HA is up)
-    async def _add(_now=None) -> None:
-        await _async_register_resource(hass)
-
+    # Run after start and also once shortly after setup (for reloads)
     if hass.is_running:
-        async_call_later(hass, 3, lambda now: hass.async_create_task(_add()))
+        async_call_later(hass, 2, lambda now: hass.async_create_task(_ensure()))
+        async_call_later(hass, 15, lambda now: hass.async_create_task(_ensure()))
     else:
         async def _on_start(_event: Event) -> None:
-            async_call_later(hass, 3, lambda now: hass.async_create_task(_add()))
+            async_call_later(hass, 5, lambda now: hass.async_create_task(_ensure()))
 
         hass.bus.async_listen_once("homeassistant_started", _on_start)
 
 
-async def _async_register_resource(hass: HomeAssistant) -> None:
+async def _async_ensure_resource(hass: HomeAssistant) -> None:
+    """Create or UPDATE Lovelace resource to CARD_URL_VERSIONED."""
     resources = _find_resources(hass)
     if resources is None:
         _LOGGER.warning(
-            "Add card resource manually → Settings → Dashboards → Resources: "
-            "%s (JavaScript Module)",
-            CARD_URL,
+            "Add Lovelace resource manually: %s (JavaScript Module)",
+            CARD_URL_VERSIONED,
         )
         return
 
@@ -101,23 +79,60 @@ async def _async_register_resource(hass: HomeAssistant) -> None:
     except Exception:
         items = []
 
+    target = CARD_URL_VERSIONED
+    found_id = None
+    found_url = None
+
     for item in items:
-        url = item.get("url", "") if isinstance(item, dict) else ""
-        if DOMAIN in url or "smart_dehumidifier" in url:
-            _LOGGER.info("Card resource already present: %s", url)
+        if not isinstance(item, dict):
+            continue
+        url = str(item.get("url") or "")
+        if "smart_dehumidifier" not in url and DOMAIN not in url and "dehumidifier" not in url.lower():
+            # only our card paths
+            if "/smart_dehumidifier_files/" not in url and "smart_dehumidifier" not in url:
+                continue
+        if "/smart_dehumidifier_files/" in url or "smart_dehumidifier" in url:
+            found_id = item.get("id")
+            found_url = url
+            break
+
+    # Exact match already
+    if found_url == target:
+        _LOGGER.info("SD card resource OK: %s", target)
+        return
+
+    # Update existing entry to new versioned URL
+    if found_id is not None and hasattr(resources, "async_update_item"):
+        try:
+            await resources.async_update_item(
+                found_id, {"res_type": "module", "url": target}
+            )
+            _LOGGER.warning("SD card resource UPDATED: %s → %s", found_url, target)
+            return
+        except Exception as err:
+            _LOGGER.warning("Resource update failed (%s), try create", err)
+
+    # Create new if missing
+    if found_url is None:
+        try:
+            await resources.async_create_item({"res_type": "module", "url": target})
+            _LOGGER.warning("SD card resource CREATED: %s", target)
+            return
+        except Exception as err:
+            _LOGGER.warning(
+                "Could not create resource (%s). Add manually: %s",
+                err,
+                target,
+            )
             return
 
-    try:
-        await resources.async_create_item(
-            {"res_type": "module", "url": CARD_URL_VERSIONED}
-        )
-        _LOGGER.warning("Card resource auto-added: %s", CARD_URL_VERSIONED)
-    except Exception as err:
-        _LOGGER.warning(
-            "Auto-add resource failed (%s). Add manually: %s (JavaScript Module)",
-            err,
-            CARD_URL,
-        )
+    # Had old URL but could not update — create versioned alongside
+    if found_url != target:
+        try:
+            await resources.async_create_item({"res_type": "module", "url": target})
+            _LOGGER.warning("SD card resource added (old left): %s", target)
+        except Exception as err:
+            _LOGGER.warning("Add resource manually: %s (%s)", target, err)
 
 
 def _find_resources(hass: HomeAssistant):

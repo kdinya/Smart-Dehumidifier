@@ -1,18 +1,18 @@
-import { html, css, LitElement, unsafeCSS } from './files/lit-proxy.js?v=1.5.1';
+import { html, css, LitElement, unsafeCSS } from './files/lit-proxy.js?v=1.5.2';
 
-import { renderArcSlider } from './components/arc-slider.js?v=1.5.1';
-import { renderCurrentHumidity } from './components/current-humidity.js?v=1.5.1';
-import { renderHumidityPanel } from './components/humidity-panel.js?v=1.5.1';
-import { renderBottomControls } from './components/bottom-controls.js?v=1.5.1';
-import { renderVisualEffects } from './components/visual-effects.js?v=1.5.1';
-import { renderSettingsPanel } from './components/settings-panel.js?v=1.5.1';
+import { renderArcSlider } from './components/arc-slider.js?v=1.5.2';
+import { renderCurrentHumidity } from './components/current-humidity.js?v=1.5.2';
+import { renderHumidityPanel } from './components/humidity-panel.js?v=1.5.2';
+import { renderBottomControls } from './components/bottom-controls.js?v=1.5.2';
+import { renderVisualEffects } from './components/visual-effects.js?v=1.5.2';
+import { renderSettingsPanel } from './components/settings-panel.js?v=1.5.2';
 
 import {
   toFiniteNumber,
   toPositiveNumber,
   formatElapsedSince,
   resolveSdEntities,
-} from './dh-utils.js?v=1.5.1';
+} from './dh-utils.js?v=1.5.2';
 
 const DEFAULT_BORDER_RADIUS = 28;
 const DEFAULT_HEIGHT_PERCENT = 100;
