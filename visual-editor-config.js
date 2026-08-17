@@ -12,21 +12,23 @@ const ALIGNMENT_OPTIONS = [
   { value: 'right', label: 'Праворуч' },
 ];
 
+export const ENTITY_FIELDS = [
+  ent('entity', 'Основний осушувач', 'humidifier', true),
+  ent('fan_entity', 'Вентилятор', 'switch'),
+  ent('status_entity', 'Статус', 'sensor'),
+  ent('auto_entity', 'Авто режим', 'input_boolean'),
+  ent('calc_entity', 'Рекомендована вологість', 'sensor'),
+  ent('current_humidity_entity', 'Поточна вологість (опційно)', 'sensor'),
+  ent('manual_script_entity', 'Скрипт ручного режиму', 'script'),
+  ent('delta_entity', 'Дельта', 'input_number'),
+  ent('min_rh_entity', 'Мін. вологість авто', 'input_number'),
+  ent('max_rh_entity', 'Макс. вологість авто', 'input_number'),
+  ent('manual_runtime_entity', 'Час ручного режиму', 'input_number'),
+  ent('manual_pause_runtime_entity', 'Час паузи', 'input_number'),
+];
+
 export const EDITOR_SCHEMA = [
-  section('entities', '🔌', 'Сутності (Entities)', [
-    ent('entity', 'Основний осушувач', 'humidifier', true),
-    ent('fan_entity', 'Вентилятор', 'switch'),
-    ent('status_entity', 'Статус', 'sensor'),
-    ent('auto_entity', 'Авто режим', 'input_boolean'),
-    ent('calc_entity', 'Рекомендована вологість', 'sensor'),
-    ent('current_humidity_entity', 'Поточна вологість (опційно)', 'sensor'),
-    ent('manual_script_entity', 'Скрипт ручного режиму', 'script'),
-    ent('delta_entity', 'Дельта', 'input_number'),
-    ent('min_rh_entity', 'Мін. вологість авто', 'input_number'),
-    ent('max_rh_entity', 'Макс. вологість авто', 'input_number'),
-    ent('manual_runtime_entity', 'Час ручного режиму', 'input_number'),
-    ent('manual_pause_runtime_entity', 'Час паузи', 'input_number'),
-  ]),
+  section('entities', '🔌', 'Сутності (Entities)', ENTITY_FIELDS),
 
   section('layout', '📐', 'Розкладка', [
     num('card_border_radius', 'Заокруглення картки', 0, 80, 28, 1),

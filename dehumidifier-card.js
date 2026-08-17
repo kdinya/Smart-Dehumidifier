@@ -310,7 +310,9 @@ class MyDehumidifierCard extends LitElement {
   }
 
   setConfig(config) {
-    if (!config?.entity) throw new Error('Потрібно вказати entity');
+    if (!config || typeof config !== 'object') {
+      throw new Error('Невалідна конфігурація картки');
+    }
 
     this._config = {
       type: 'custom:my-dehumidifier',
@@ -319,6 +321,79 @@ class MyDehumidifierCard extends LitElement {
 
     this._trackedEntityIds = extractTrackedEntities(this._config);
     this._syncTicker();
+  }
+
+  static getConfigForm() {
+    return {
+      schema: [
+        {
+          name: 'entity',
+          required: true,
+          selector: { entity: { domain: 'humidifier' } },
+        },
+        {
+          name: 'fan_entity',
+          selector: { entity: { domain: 'switch' } },
+        },
+        {
+          name: 'status_entity',
+          selector: { entity: { domain: 'sensor' } },
+        },
+        {
+          name: 'auto_entity',
+          selector: { entity: { domain: 'input_boolean' } },
+        },
+        {
+          name: 'calc_entity',
+          selector: { entity: { domain: 'sensor' } },
+        },
+        {
+          name: 'current_humidity_entity',
+          selector: { entity: { domain: 'sensor' } },
+        },
+        {
+          name: 'manual_script_entity',
+          selector: { entity: { domain: 'script' } },
+        },
+        {
+          name: 'delta_entity',
+          selector: { entity: { domain: 'input_number' } },
+        },
+        {
+          name: 'min_rh_entity',
+          selector: { entity: { domain: 'input_number' } },
+        },
+        {
+          name: 'max_rh_entity',
+          selector: { entity: { domain: 'input_number' } },
+        },
+        {
+          name: 'manual_runtime_entity',
+          selector: { entity: { domain: 'input_number' } },
+        },
+        {
+          name: 'manual_pause_runtime_entity',
+          selector: { entity: { domain: 'input_number' } },
+        },
+      ],
+      computeLabel: (schema) => {
+        const labels = {
+          entity: 'Основний осушувач',
+          fan_entity: 'Вентилятор',
+          status_entity: 'Статус',
+          auto_entity: 'Авто режим',
+          calc_entity: 'Рекомендована вологість',
+          current_humidity_entity: 'Поточна вологість (опційно)',
+          manual_script_entity: 'Скрипт ручного режиму',
+          delta_entity: 'Дельта',
+          min_rh_entity: 'Мін. вологість авто',
+          max_rh_entity: 'Макс. вологість авто',
+          manual_runtime_entity: 'Час ручного режиму',
+          manual_pause_runtime_entity: 'Час паузи',
+        };
+        return labels[schema.name] || schema.name;
+      },
+    };
   }
 
   _isFanRunning(hass = this._hass) {
@@ -550,3 +625,14 @@ if (!customElements.get('my-dehumidifier')) {
 }
 
 export { MyDehumidifierCard };
+
+window.customCards = window.customCards || [];
+if (!window.customCards.some((c) => c.type === 'my-dehumidifier')) {
+  window.customCards.push({
+    type: 'my-dehumidifier',
+    name: 'Smart Dehumidifier',
+    description: 'Преміум картка осушувача з візуальним редактором',
+    preview: true,
+    documentationURL: 'https://github.com/kdinya/Smart-Dehumidifier',
+  });
+}

@@ -1,7 +1,7 @@
 import { html, css, LitElement } from './files/lit-proxy.js';
-import { EDITOR_SCHEMA } from './visual-editor-config.js';
+import { EDITOR_SCHEMA, ENTITY_FIELDS } from './visual-editor-config.js';
 
-const STORAGE_KEY = 'dh-editor-open-sections-v3';
+const STORAGE_KEY = 'dh-editor-open-sections-v4';
 
 function fireEvent(node, type, detail = {}, options = {}) {
   const event = new CustomEvent(type, {
@@ -56,11 +56,7 @@ function buildInitialSections(current = {}) {
   const result = {};
 
   for (const section of EDITOR_SCHEMA) {
-    // Entities section is always open so entity pickers are visible
-    if (section.id === 'entities') {
-      result[section.id] = true;
-      continue;
-    }
+    if (section.id === 'entities') continue;
 
     if (section.id in current) {
       result[section.id] = !!current[section.id];
@@ -92,12 +88,12 @@ class DehumidifierEditor extends LitElement {
       color: var(--primary-text-color);
       --ed-accent: #16b9f0;
       --ed-accent-soft: rgba(22, 185, 240, 0.16);
-      --ed-border: rgba(255,255,255,0.10);
-      --ed-border-soft: rgba(255,255,255,0.05);
-      --ed-panel: rgba(255,255,255,0.02);
-      --ed-panel-2: rgba(255,255,255,0.04);
-      --ed-panel-3: rgba(255,255,255,0.06);
-      --ed-text-dim: rgba(255,255,255,0.72);
+      --ed-border: rgba(255, 255, 255, 0.10);
+      --ed-border-soft: rgba(255, 255, 255, 0.05);
+      --ed-panel: rgba(255, 255, 255, 0.02);
+      --ed-panel-2: rgba(255, 255, 255, 0.04);
+      --ed-panel-3: rgba(255, 255, 255, 0.06);
+      --ed-text-dim: rgba(255, 255, 255, 0.72);
     }
 
     .editor {
@@ -107,12 +103,55 @@ class DehumidifierEditor extends LitElement {
       padding: 4px 0 12px;
     }
 
+    .entities-block {
+      border: 1px solid rgba(22, 185, 240, 0.35);
+      border-radius: 14px;
+      overflow: hidden;
+      background: rgba(22, 185, 240, 0.06);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .entities-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      background: rgba(22, 185, 240, 0.10);
+      border-bottom: 1px solid rgba(22, 185, 240, 0.2);
+    }
+
+    .entities-emoji {
+      width: 20px;
+      text-align: center;
+      font-size: 16px;
+    }
+
+    .entities-title {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .entities-hint {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.5);
+      padding: 0 14px 8px;
+    }
+
+    .entities-body {
+      padding: 4px 10px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
     .section {
       border: 1px solid var(--ed-border);
       border-radius: 14px;
       overflow: hidden;
       background: var(--ed-panel);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
     }
 
     .section-head {
@@ -197,8 +236,8 @@ class DehumidifierEditor extends LitElement {
     .field-reset {
       flex-shrink: 0;
       border: 1px solid var(--ed-border);
-      background: rgba(255,255,255,0.03);
-      color: rgba(255,255,255,0.72);
+      background: rgba(255, 255, 255, 0.03);
+      color: rgba(255, 255, 255, 0.72);
       border-radius: 8px;
       height: 28px;
       min-width: 28px;
@@ -210,7 +249,7 @@ class DehumidifierEditor extends LitElement {
     }
 
     .field-reset:hover {
-      background: rgba(255,255,255,0.06);
+      background: rgba(255, 255, 255, 0.06);
     }
 
     .text-input,
@@ -219,7 +258,7 @@ class DehumidifierEditor extends LitElement {
       box-sizing: border-box;
       border-radius: 10px;
       border: 1px solid var(--ed-border);
-      background: rgba(255,255,255,0.03);
+      background: rgba(255, 255, 255, 0.03);
       color: inherit;
       padding: 9px 10px;
       font: inherit;
@@ -229,8 +268,8 @@ class DehumidifierEditor extends LitElement {
 
     .text-input:focus,
     .select-input:focus {
-      border-color: rgba(22,185,240,0.5);
-      box-shadow: 0 0 0 1px rgba(22,185,240,0.18);
+      border-color: rgba(22, 185, 240, 0.5);
+      box-shadow: 0 0 0 1px rgba(22, 185, 240, 0.18);
     }
 
     .toggle-row {
@@ -264,8 +303,8 @@ class DehumidifierEditor extends LitElement {
       position: absolute;
       inset: 0;
       border-radius: 999px;
-      background: rgba(255,255,255,0.15);
-      transition: .2s;
+      background: rgba(255, 255, 255, 0.15);
+      transition: 0.2s;
       cursor: pointer;
     }
 
@@ -278,12 +317,12 @@ class DehumidifierEditor extends LitElement {
       top: 3px;
       border-radius: 50%;
       background: #fff;
-      transition: .2s;
+      transition: 0.2s;
     }
 
     .switch input:checked + .slider {
       background: var(--ed-accent);
-      box-shadow: 0 0 0 1px rgba(22,185,240,0.15);
+      box-shadow: 0 0 0 1px rgba(22, 185, 240, 0.15);
     }
 
     .switch input:checked + .slider::before {
@@ -302,7 +341,7 @@ class DehumidifierEditor extends LitElement {
       height: 34px;
       border-radius: 10px;
       border: 1px solid var(--ed-border);
-      background: rgba(255,255,255,0.04);
+      background: rgba(255, 255, 255, 0.04);
       color: inherit;
       font: inherit;
       font-size: 18px;
@@ -311,7 +350,7 @@ class DehumidifierEditor extends LitElement {
     }
 
     .num-btn:hover {
-      background: rgba(255,255,255,0.07);
+      background: rgba(255, 255, 255, 0.07);
     }
 
     .range {
@@ -329,22 +368,15 @@ class DehumidifierEditor extends LitElement {
       font-variant-numeric: tabular-nums;
     }
 
-    .hint {
-      margin-top: 6px;
-      font-size: 11px;
-      line-height: 1.25;
-      color: rgba(255,255,255,0.42);
-    }
-
-    ha-entity-picker {
+    ha-entity-picker,
+    ha-selector {
       display: block;
       width: 100%;
-      --mdc-text-field-fill-color: rgba(255, 255, 255, 0.03);
-      --mdc-text-field-ink-color: var(--primary-text-color);
-      --mdc-text-field-label-ink-color: var(--ed-text-dim);
-      --mdc-text-field-idle-line-color: var(--ed-border);
-      --mdc-text-field-hover-line-color: rgba(22, 185, 240, 0.5);
-      --mdc-theme-primary: var(--ed-accent);
+    }
+
+    ha-form {
+      display: block;
+      width: 100%;
     }
   `;
 
@@ -356,7 +388,7 @@ class DehumidifierEditor extends LitElement {
   }
 
   setConfig(config) {
-    this._config = { ...config };
+    this._config = { ...(config || {}) };
     this._openSections = buildInitialSections(this._openSections);
   }
 
@@ -388,7 +420,9 @@ class DehumidifierEditor extends LitElement {
         field.max ?? Infinity
       );
     } else {
-      next[field.key] = String(rawValue ?? '').trim();
+      const str = String(rawValue ?? '').trim();
+      if (str) next[field.key] = str;
+      else delete next[field.key];
     }
 
     this._emitConfig(next);
@@ -401,13 +435,6 @@ class DehumidifierEditor extends LitElement {
   }
 
   _toggleSection(id) {
-    // Keep entities section always expanded so pickers stay visible
-    if (id === 'entities') {
-      this._openSections = { ...this._openSections, entities: true };
-      writeStoredSections(this._openSections);
-      return;
-    }
-
     this._openSections = {
       ...this._openSections,
       [id]: !this._openSections[id],
@@ -490,9 +517,9 @@ class DehumidifierEditor extends LitElement {
           .value=${value}
           @change=${(e) => this._setValue(field, e.target.value)}
         >
-          ${(field.options || []).map((o) => html`
-            <option value=${o.value}>${o.label}</option>
-          `)}
+          ${(field.options || []).map(
+            (o) => html`<option value=${o.value}>${o.label}</option>`
+          )}
         </select>
       </div>
     `;
@@ -521,9 +548,9 @@ class DehumidifierEditor extends LitElement {
   }
 
   _renderNumber(field) {
-    const step = Number(field.step ?? 1);
     const min = field.min ?? 0;
     const max = field.max ?? 100;
+    const step = field.step ?? 1;
     const value = Number(this._fieldValue(field) ?? min);
 
     return html`
@@ -554,14 +581,6 @@ class DehumidifierEditor extends LitElement {
     `;
   }
 
-  _renderField(field) {
-    if (field.type === 'tog') return this._renderToggle(field);
-    if (field.type === 'select') return this._renderSelect(field);
-    if (field.type === 'num') return this._renderNumber(field);
-    if (field.type === 'entity') return this._renderEntity(field);
-    return this._renderText(field);
-  }
-
   _renderEntity(field) {
     const value = this._fieldValue(field) || '';
     const domain = field.domain || null;
@@ -572,7 +591,9 @@ class DehumidifierEditor extends LitElement {
         <div class="field-head">
           <div class="field-label">
             ${field.label}
-            ${field.required ? html`<span style="color:#f87171;margin-left:4px;">*</span>` : ''}
+            ${field.required
+              ? html`<span style="color:#f87171;margin-left:4px;">*</span>`
+              : ''}
           </div>
           ${this._renderReset(field)}
         </div>
@@ -582,17 +603,76 @@ class DehumidifierEditor extends LitElement {
           .value=${value}
           .includeDomains=${domains}
           .allowCustomEntity=${true}
-          .disabled=${!this.hass}
           @value-changed=${(e) => this._setValue(field, e.detail?.value ?? '')}
         ></ha-entity-picker>
       </div>
     `;
   }
 
+  _renderField(field) {
+    if (field.type === 'tog') return this._renderToggle(field);
+    if (field.type === 'select') return this._renderSelect(field);
+    if (field.type === 'num') return this._renderNumber(field);
+    if (field.type === 'entity') return this._renderEntity(field);
+    return this._renderText(field);
+  }
+
+  _onHaFormChanged(ev) {
+    const value = ev.detail?.value;
+    if (!value || typeof value !== 'object') return;
+    this._emitConfig({ ...this._config, ...value });
+  }
+
+  _computeLabel = (schema) => {
+    const field = ENTITY_FIELDS.find((f) => f.key === schema.name);
+    return field?.label || schema.name;
+  };
+
+  get _entityFormSchema() {
+    return ENTITY_FIELDS.map((f) => ({
+      name: f.key,
+      required: !!f.required,
+      selector: {
+        entity: f.domain ? { domain: f.domain } : {},
+      },
+    }));
+  }
+
+  get _entityFormData() {
+    const data = {};
+    for (const f of ENTITY_FIELDS) {
+      if (this._config?.[f.key]) data[f.key] = this._config[f.key];
+    }
+    return data;
+  }
+
   render() {
+    const optionSections = EDITOR_SCHEMA.filter((s) => s.id !== 'entities');
+
     return html`
       <div class="editor">
-        ${EDITOR_SCHEMA.map((section) => {
+        <div class="entities-block">
+          <div class="entities-head">
+            <span class="entities-emoji">🔌</span>
+            <span class="entities-title">Сутності (Entities)</span>
+          </div>
+          <div class="entities-hint">Обов’язково вибери основний осушувач. Решту — за потреби.</div>
+          <div class="entities-body">
+            ${this.hass
+              ? html`
+                  <ha-form
+                    .hass=${this.hass}
+                    .data=${this._entityFormData}
+                    .schema=${this._entityFormSchema}
+                    .computeLabel=${this._computeLabel}
+                    @value-changed=${this._onHaFormChanged}
+                  ></ha-form>
+                `
+              : ENTITY_FIELDS.map((field) => this._renderEntity(field))}
+          </div>
+        </div>
+
+        ${optionSections.map((section) => {
           const isOpen = !!this._openSections[section.id];
 
           return html`
@@ -607,11 +687,13 @@ class DehumidifierEditor extends LitElement {
                 <span class="section-arrow ${isOpen ? 'open' : ''}">▼</span>
               </button>
 
-              ${isOpen ? html`
-                <div class="section-body">
-                  ${section.fields.map((field) => this._renderField(field))}
-                </div>
-              ` : html``}
+              ${isOpen
+                ? html`
+                    <div class="section-body">
+                      ${section.fields.map((field) => this._renderField(field))}
+                    </div>
+                  `
+                : html``}
             </div>
           `;
         })}
@@ -622,4 +704,15 @@ class DehumidifierEditor extends LitElement {
 
 if (!customElements.get('my-dehumidifier-editor')) {
   customElements.define('my-dehumidifier-editor', DehumidifierEditor);
+}
+
+window.customCards = window.customCards || [];
+if (!window.customCards.some((c) => c.type === 'my-dehumidifier')) {
+  window.customCards.push({
+    type: 'my-dehumidifier',
+    name: 'Smart Dehumidifier',
+    description: 'Преміум картка осушувача з візуальним редактором і entity-picker',
+    preview: true,
+    documentationURL: 'https://github.com/kdinya/Smart-Dehumidifier',
+  });
 }

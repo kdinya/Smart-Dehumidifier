@@ -2,7 +2,7 @@
 
 **Premium visual card + smart logic package for Home Assistant**
 
-Версія **1.0.1**
+Версія **1.0.0**
 
 ## Встановлення (HACS)
 
