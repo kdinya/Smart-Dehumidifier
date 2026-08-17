@@ -263,7 +263,7 @@ class MyDehumidifierCard extends LitElement {
   `;
 
   static getConfigElement() {
-    return document.createElement('my-dehumidifier-editor');
+    return document.createElement('my-dehumidifier-editor-v2');
   }
 
   static getStubConfig() {
