@@ -1,5 +1,5 @@
-import { html, css, LitElement } from './files/lit-proxy.js';
-import { EDITOR_SCHEMA, ENTITY_FIELDS } from './visual-editor-config.js';
+import { html, css, LitElement } from './files/lit-proxy.js?v=1.5.1';
+import { EDITOR_SCHEMA, ENTITY_FIELDS } from './visual-editor-config.js?v=1.5.1';
 
 const STORAGE_KEY = 'dh-editor-open-sections-v5';
 const EDITOR_VERSION = '1.2.0';

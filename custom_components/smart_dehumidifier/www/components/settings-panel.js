@@ -1,6 +1,6 @@
-import { html } from '../files/lit-proxy.js';
-import { t } from '../i18n.js';
-import { resolveSdEntities } from '../dh-utils.js';
+import { html } from '../files/lit-proxy.js?v=1.5.1';
+import { t } from '../i18n.js?v=1.5.1';
+import { resolveSdEntities } from '../dh-utils.js?v=1.5.1';
 
 /**
  * Gear settings: min / max / delta / timers + language.
