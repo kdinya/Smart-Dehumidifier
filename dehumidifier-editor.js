@@ -2,7 +2,7 @@ import { html, css, LitElement } from './files/lit-proxy.js';
 import { EDITOR_SCHEMA, ENTITY_FIELDS } from './visual-editor-config.js';
 
 const STORAGE_KEY = 'dh-editor-open-sections-v5';
-const EDITOR_VERSION = '1.1.0';
+const EDITOR_VERSION = '1.2.0';
 
 function fireEvent(node, type, detail = {}, options = {}) {
   const event = new CustomEvent(type, {

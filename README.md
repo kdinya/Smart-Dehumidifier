@@ -1,9 +1,11 @@
 # Smart Dehumidifier
 
-Окремий самостійний проєкт для Home Assistant.  
-**Не залежить** від старих карток `my-dehumidifier` / локальних zip.
+**Повністю незалежний** проєкт для Home Assistant.  
+Не залежить від жодних старих карток (`my-dehumidifier`, локальних zip, `vanna_*` тощо).
 
-Версія **1.1.0**
+Версія **1.2.0**
+
+Окремий репозиторій з власним типом картки, власними custom elements і власним пакетом helpers/автоматизацій.
 
 ## Тип картки
 
@@ -12,16 +14,18 @@ type: custom:smart-dehumidifier
 ```
 
 Custom elements:
-- `smart-dehumidifier` — картка
+- `smart-dehumidifier` — основна картка
 - `smart-dehumidifier-editor` — візуальний редактор
 
-## Встановлення (HACS)
+## Встановлення через HACS (рекомендовано)
 
-1. HACS → Frontend → ⋮ → **Custom repositories**
-2. URL: `https://github.com/kdinya/Smart-Dehumidifier`
-3. Category: **Lovelace**
-4. Download / Install
-5. Перезавантаж браузер (Ctrl+F5)
+1. Відкрий **HACS**
+2. Натисни **⋮** (вгорі справа) → **Custom repositories**
+3. Встав URL: `https://github.com/kdinya/Smart-Dehumidifier`
+4. **Category обов’язково: Lovelace** (не Integration!)
+5. Натисни **Add**
+6. Знайди **Smart Dehumidifier** у Frontend і натисни **Download**
+7. Перезавантаж браузер (Ctrl + F5 / Cmd + Shift + R)
 
 Ресурс (якщо HACS не додав автоматично):
 
@@ -30,15 +34,51 @@ url: /hacsfiles/Smart-Dehumidifier/index.js
 type: module
 ```
 
-> Старий dehumidifier **не чіпай**. Ця картка — інший type і інші elements.
+> Старий осушувач / стару картку **не чіпай і не видаляй**.  
+> Ця картка має інший `type` і інші custom elements — конфліктів не буде.
 
-## Налаштування
+## Швидкий старт
 
-1. Додай картку **Smart Dehumidifier** (`custom:smart-dehumidifier`)
-2. У блоці **🔌 Сутності** обери entity (picker або вручну)
-3. Решту параметрів — у секціях нижче (розкладка, дуга, ефекти…)
+### 1. Backend (Package)
 
-Мінімальний приклад:
+1. Скопіюй файл `package/smart_dehumidifier.yaml`
+2. Заміни **два** плейсхолдери на свої реальні entity:
+   - `YOUR_HUMIDIFIER_ENTITY` → наприклад `bathroom` (без `humidifier.`)
+   - `YOUR_FAN_ENTITY` → наприклад `bathroom_fan` (без `switch.`)
+3. Додай пакет у `configuration.yaml`:
+
+```yaml
+homeassistant:
+  packages:
+    smart_dehumidifier: !include package/smart_dehumidifier.yaml
+```
+
+або поклади файл у `packages/` і увімкни packages.
+
+4. Перезавантаж Home Assistant (Configuration → YAML configuration reloading → Packages або повний restart).
+
+Після цього з’являться:
+- `input_boolean.sd_auto_humidity`
+- `input_number.sd_*`
+- `timer.sd_manual_mode` / `timer.sd_manual_pause`
+- `sensor.sd_status` / `sensor.sd_recommended_humidity` / `sensor.sd_status_label`
+- `script.sd_manual_toggle`
+- 5 автоматизацій з префіксом `SD -`
+
+### 2. Картка
+
+1. Додай нову картку → **Custom: Smart Dehumidifier**
+2. У блоці **🔌 Сутності** обери (або впиши):
+   - Основний осушувач (`humidifier.*`)
+   - Вентилятор (`switch.*`)
+   - Статус → `sensor.sd_status`
+   - Авто → `input_boolean.sd_auto_humidity`
+   - Рекомендована вологість → `sensor.sd_recommended_humidity`
+   - Скрипт → `script.sd_manual_toggle`
+   - Дельта / мін / макс / час ручного / час паузи → відповідні `input_number.sd_*`
+3. Решту налаштувань (розкладка, дуга, ефекти, шрифти) — у секціях нижче. Все візуально.
+
+Мінімальний робочий приклад:
 
 ```yaml
 type: custom:smart-dehumidifier
@@ -55,22 +95,41 @@ manual_runtime_entity: input_number.sd_manual_runtime
 manual_pause_runtime_entity: input_number.sd_manual_pause_runtime
 ```
 
-## Backend (Package)
+## Функціонал (весь, як у старому)
 
-Файл `package/smart_dehumidifier.yaml` — helpers + автоматизації з префіксом `sd_`.
+- Автоматична синхронізація цільової вологості
+- Ручний режим з таймером + пауза
+- Реакція на фізичне вмикання/вимикання вентилятора
+- Master Fan Controller (вентилятор керується логікою, а не руками)
+- Full Stop при вимкненні осушувача
+- Статус (off / auto / manual / paused)
+- Повністю налаштовувана візуальна картка (скло, дуга, повзунок, ефекти тощо)
 
-Заміни плейсхолдери:
-- `YOUR_HUMIDIFIER_ENTITY`
-- `YOUR_FAN_ENTITY`
+## Структура репозиторію
 
-## Структура (усе всередині репо)
+```
+Smart-Dehumidifier/
+├── index.js                    # точка входу
+├── dehumidifier-card.js
+├── dehumidifier-editor.js
+├── visual-editor-config.js
+├── dh-utils.js
+├── components/                 # UI-блоки
+├── files/                      # Lit (офлайн, без CDN)
+├── fonts/                      # 7-segment
+├── package/
+│   └── smart_dehumidifier.yaml # helpers + automations
+├── hacs.json
+├── README.md
+└── LICENSE
+```
 
-- `index.js` — точка входу
-- `dehumidifier-card.js` / `dehumidifier-editor.js`
-- `components/` — UI-блоки
-- `files/lit-core.min.js` — Lit офлайн (без CDN)
-- `fonts/` — 7segment
-- `package/` — HA package
+## Важливо
+
+- Репозиторій **повністю самостійний**.
+- Не використовує жодних entity зі старого проєкту.
+- Можна ставити паралельно зі старим осушувачем.
+- Оновлення через HACS.
 
 ## Ліцензія
 

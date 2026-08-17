@@ -1,5 +1,12 @@
-# Smart Dehumidifier Package v1.0.0
-# Замініть YOUR_HUMIDIFIER_ENTITY та YOUR_FAN_ENTITY
+# Smart Dehumidifier Package v1.2.0
+# ============================================================
+# Повністю незалежний пакет. Не залежить від старого осушувача.
+# Замініть ТІЛЬКИ два плейсхолдери:
+#   YOUR_HUMIDIFIER_ENTITY  →  ім'я без domain (наприклад bathroom)
+#   YOUR_FAN_ENTITY         →  ім'я без domain (наприклад bathroom_fan)
+# Після заміни entity будуть: humidifier.bathroom і switch.bathroom_fan
+# ============================================================
+
 
 input_boolean:
   sd_auto_humidity:
