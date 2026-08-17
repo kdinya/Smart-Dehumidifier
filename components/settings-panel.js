@@ -30,11 +30,13 @@ export function renderSettingsPanel(card, config) {
     recommended: hass.states[entities.calc] ? hass.states[entities.calc].state : '--',
   };
 
-  const updateValue = (id, val) =>
-    hass.callService('input_number', 'set_value', {
+  const updateValue = (id, val) => {
+    if (!id || !hass) return Promise.resolve();
+    return hass.callService('input_number', 'set_value', {
       entity_id: id,
       value: Number(val),
     });
+  };
 
   const toggleSection = (id) => {
     card._openSections[id] = !card._openSections[id];
@@ -75,6 +77,7 @@ export function renderSettingsPanel(card, config) {
 
   const startIntentDrag = (e, entityId, unit, min, max, step) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (!entityId) return;
 
     const wrap = e.currentTarget;
     const input = wrap.querySelector('.sp-slider');

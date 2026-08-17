@@ -1,7 +1,7 @@
 import { html, css, LitElement } from './files/lit-proxy.js';
 import { EDITOR_SCHEMA } from './visual-editor-config.js';
 
-const STORAGE_KEY = 'dh-editor-open-sections-v2';
+const STORAGE_KEY = 'dh-editor-open-sections-v3';
 
 function fireEvent(node, type, detail = {}, options = {}) {
   const event = new CustomEvent(type, {
@@ -56,6 +56,12 @@ function buildInitialSections(current = {}) {
   const result = {};
 
   for (const section of EDITOR_SCHEMA) {
+    // Entities section is always open so entity pickers are visible
+    if (section.id === 'entities') {
+      result[section.id] = true;
+      continue;
+    }
+
     if (section.id in current) {
       result[section.id] = !!current[section.id];
       continue;
@@ -66,7 +72,7 @@ function buildInitialSections(current = {}) {
       continue;
     }
 
-    result[section.id] = section.id === 'entities' || section.id === 'layout';
+    result[section.id] = section.id === 'layout';
   }
 
   return result;
@@ -329,6 +335,17 @@ class DehumidifierEditor extends LitElement {
       line-height: 1.25;
       color: rgba(255,255,255,0.42);
     }
+
+    ha-entity-picker {
+      display: block;
+      width: 100%;
+      --mdc-text-field-fill-color: rgba(255, 255, 255, 0.03);
+      --mdc-text-field-ink-color: var(--primary-text-color);
+      --mdc-text-field-label-ink-color: var(--ed-text-dim);
+      --mdc-text-field-idle-line-color: var(--ed-border);
+      --mdc-text-field-hover-line-color: rgba(22, 185, 240, 0.5);
+      --mdc-theme-primary: var(--ed-accent);
+    }
   `;
 
   constructor() {
@@ -384,6 +401,13 @@ class DehumidifierEditor extends LitElement {
   }
 
   _toggleSection(id) {
+    // Keep entities section always expanded so pickers stay visible
+    if (id === 'entities') {
+      this._openSections = { ...this._openSections, entities: true };
+      writeStoredSections(this._openSections);
+      return;
+    }
+
     this._openSections = {
       ...this._openSections,
       [id]: !this._openSections[id],
@@ -541,6 +565,7 @@ class DehumidifierEditor extends LitElement {
   _renderEntity(field) {
     const value = this._fieldValue(field) || '';
     const domain = field.domain || null;
+    const domains = domain ? [domain] : undefined;
 
     return html`
       <div class="field">
@@ -555,10 +580,10 @@ class DehumidifierEditor extends LitElement {
         <ha-entity-picker
           .hass=${this.hass}
           .value=${value}
-          .label=${field.label}
-          .includeDomains=${domain ? [domain] : undefined}
+          .includeDomains=${domains}
           .allowCustomEntity=${true}
-          @value-changed=${(e) => this._setValue(field, e.detail.value)}
+          .disabled=${!this.hass}
+          @value-changed=${(e) => this._setValue(field, e.detail?.value ?? '')}
         ></ha-entity-picker>
       </div>
     `;
