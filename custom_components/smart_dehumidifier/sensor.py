@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from homeassistant.components.sensor import SensorEntity, SensorDeviceClass
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.entity import DeviceInfo
 
-from .const import DOMAIN, KEY_RECOMMENDED, KEY_STATUS, KEY_MIN_RH, KEY_MAX_RH
+from .const import DOMAIN, KEY_MAX_RH, KEY_MIN_RH, KEY_RECOMMENDED, KEY_STATUS, VERSION
 from . import SmartDehumidifierCoordinator
 
 
@@ -18,23 +18,19 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator: SmartDehumidifierCoordinator = hass.data[DOMAIN][entry.entry_id]
-
     entities = [
         SmartDehumidifierStatusSensor(coordinator),
         SmartDehumidifierRecommendedSensor(coordinator),
     ]
     async_add_entities(entities)
-
     for ent in entities:
         if hasattr(ent, "key"):
             coordinator.register_entity(ent.key, ent)
 
 
 class SmartDehumidifierBaseSensor(SensorEntity):
-    """Base sensor."""
-
     _attr_has_entity_name = True
-    _attr_should_poll = False
+    _attr_should_poll = True  # refresh recommended from room sensor
 
     def __init__(self, coordinator: SmartDehumidifierCoordinator, key: str, name: str) -> None:
         self.coordinator = coordinator
@@ -46,16 +42,15 @@ class SmartDehumidifierBaseSensor(SensorEntity):
             name=coordinator.name,
             manufacturer="Smart Dehumidifier",
             model="Virtual Controller",
-            sw_version="1.3.0",
+            sw_version=VERSION,
         )
 
 
 class SmartDehumidifierStatusSensor(SmartDehumidifierBaseSensor):
-    """Status sensor (off / auto / manual / paused / on)."""
-
     def __init__(self, coordinator: SmartDehumidifierCoordinator) -> None:
         super().__init__(coordinator, KEY_STATUS, "Status")
         self._attr_icon = "mdi:air-humidifier"
+        self._attr_should_poll = False
 
     @property
     def native_value(self) -> str:
@@ -71,7 +66,7 @@ class SmartDehumidifierStatusSensor(SmartDehumidifierBaseSensor):
 
 
 class SmartDehumidifierRecommendedSensor(SmartDehumidifierBaseSensor):
-    """Recommended target humidity (average of min/max)."""
+    """Recommended target humidity based on adjacent room RH + delta."""
 
     def __init__(self, coordinator: SmartDehumidifierCoordinator) -> None:
         super().__init__(coordinator, KEY_RECOMMENDED, "Recommended Humidity")
@@ -81,6 +76,8 @@ class SmartDehumidifierRecommendedSensor(SmartDehumidifierBaseSensor):
 
     @property
     def native_value(self) -> int:
-        min_rh = self.coordinator._get_number(KEY_MIN_RH, 65)
-        max_rh = self.coordinator._get_number(KEY_MAX_RH, 85)
-        return round((min_rh + max_rh) / 2)
+        return self.coordinator.compute_recommended_humidity()
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return self.coordinator.recommended_attributes()

@@ -118,11 +118,15 @@ function handlePower(card, config, action, state) {
     case 'manual': {
       const scriptEntity = getManualScriptEntity(config);
       if (!scriptEntity) return;
-
-      callHA(card, 'script', 'turn_on', {
-        entity_id: scriptEntity,
-      });
-
+      const domain = String(scriptEntity).split('.')[0];
+      if (domain === 'button') {
+        callHA(card, 'button', 'press', { entity_id: scriptEntity });
+      } else if (domain === 'script') {
+        callHA(card, 'script', 'turn_on', { entity_id: scriptEntity });
+      } else {
+        // fallback service on integration
+        callHA(card, 'smart_dehumidifier', 'manual_toggle', {});
+      }
       break;
     }
 

@@ -1,4 +1,5 @@
 import { html } from '../files/lit-proxy.js';
+import { t } from '../i18n.js';
 
 export function renderSettingsPanel(card, config) {
   if (!card._isSettingsOpen) return html``;
@@ -32,7 +33,9 @@ export function renderSettingsPanel(card, config) {
 
   const updateValue = (id, val) => {
     if (!id || !hass) return Promise.resolve();
-    return hass.callService('input_number', 'set_value', {
+    const domain = String(id).split('.')[0];
+    const service = domain === 'number' ? 'number' : 'input_number';
+    return hass.callService(service, 'set_value', {
       entity_id: id,
       value: Number(val),
     });
@@ -246,7 +249,7 @@ export function renderSettingsPanel(card, config) {
         <div class="sp-header">
           <div class="sp-title">
             <span class="sp-title-dot"></span>
-            Налаштування
+            ${t(hass, 'settings')}
           </div>
           <button class="sp-close" @click=${close}>
             <ha-icon icon="mdi:close"></ha-icon>
@@ -258,7 +261,7 @@ export function renderSettingsPanel(card, config) {
             <button class="sp-head" @click=${() => toggleSection('auto')}>
               <div class="sp-head-left">
                 <div class="sp-icon-wrap"><ha-icon icon="mdi:tune-variant"></ha-icon></div>
-                <span class="sp-head-label">Авто-режим</span>
+                <span class="sp-head-label">${t(hass, 'auto')}</span>
               </div>
               <ha-icon class="sp-chevron" icon="mdi:chevron-down"></ha-icon>
             </button>
@@ -267,8 +270,8 @@ export function renderSettingsPanel(card, config) {
               <div class="sp-body">
                 <div class="sp-hud">
                   <div class="sp-hud-meta">
-                    <span class="sp-hud-label">Рекомендація</span>
-                    <span class="sp-hud-sub">розраховано автоматично</span>
+                    <span class="sp-hud-label">${t(hass, 'recommended')}</span>
+                    <span class="sp-hud-sub">${t(hass, 'room_hint')}</span>
                   </div>
                   <span class="sp-hud-val">${vals.recommended}%</span>
                 </div>
@@ -277,17 +280,17 @@ export function renderSettingsPanel(card, config) {
 
                 <div class="sp-row">
                   <div class="sp-label-line">
-                    <span class="sp-label">Дельта AH</span>
-                    <span class="sp-val">${formatSliderValue(vals.delta, 0.1)} г/м³</span>
+                    <span class="sp-label">${t(hass, 'delta')}</span>
+                    <span class="sp-val">${formatSliderValue(vals.delta, 0.5)} %</span>
                   </div>
-                  <div class="sp-slider-wrap" @pointerdown=${(e) => startIntentDrag(e, entities.delta, ' г/м³', 0.1, 10, 0.1)} @pointermove=${moveIntentDrag} @pointerup=${endIntentDrag} @pointercancel=${cancelIntentDrag} @click=${blockTapChange}>
-                    <input class="sp-slider" type="range" min="0.1" max="10" step="0.1" .value=${String(vals.delta)} tabindex="-1" disabled>
+                  <div class="sp-slider-wrap" @pointerdown=${(e) => startIntentDrag(e, entities.delta, '%', 0.5, 15, 0.5)} @pointermove=${moveIntentDrag} @pointerup=${endIntentDrag} @pointercancel=${cancelIntentDrag} @click=${blockTapChange}>
+                    <input class="sp-slider" type="range" min="0.5" max="15" step="0.5" .value=${String(vals.delta)} tabindex="-1" disabled>
                   </div>
                 </div>
 
                 <div class="sp-row">
                   <div class="sp-label-line">
-                    <span class="sp-label">Min ліміт</span>
+                    <span class="sp-label">${t(hass, 'min_rh')}</span>
                     <span class="sp-val">${formatSliderValue(vals.min, 1)}%</span>
                   </div>
                   <div class="sp-slider-wrap" @pointerdown=${(e) => startIntentDrag(e, entities.min, '%', 30, 100, 1)} @pointermove=${moveIntentDrag} @pointerup=${endIntentDrag} @pointercancel=${cancelIntentDrag} @click=${blockTapChange}>
@@ -297,7 +300,7 @@ export function renderSettingsPanel(card, config) {
 
                 <div class="sp-row">
                   <div class="sp-label-line">
-                    <span class="sp-label">Max ліміт</span>
+                    <span class="sp-label">${t(hass, 'max_rh')}</span>
                     <span class="sp-val">${formatSliderValue(vals.max, 1)}%</span>
                   </div>
                   <div class="sp-slider-wrap" @pointerdown=${(e) => startIntentDrag(e, entities.max, '%', 30, 100, 1)} @pointermove=${moveIntentDrag} @pointerup=${endIntentDrag} @pointercancel=${cancelIntentDrag} @click=${blockTapChange}>
@@ -312,7 +315,7 @@ export function renderSettingsPanel(card, config) {
             <button class="sp-head" @click=${() => toggleSection('manual')}>
               <div class="sp-head-left">
                 <div class="sp-icon-wrap"><ha-icon icon="mdi:timer-sand-complete"></ha-icon></div>
-                <span class="sp-head-label">Таймери</span>
+                <span class="sp-head-label">${t(hass, 'timers')}</span>
               </div>
               <ha-icon class="sp-chevron" icon="mdi:chevron-down"></ha-icon>
             </button>
@@ -321,20 +324,20 @@ export function renderSettingsPanel(card, config) {
               <div class="sp-body">
                 <div class="sp-row">
                   <div class="sp-label-line">
-                    <span class="sp-label">Ручний режим</span>
-                    <span class="sp-val">${formatSliderValue(vals.runtime, 1)} хв</span>
+                    <span class="sp-label">${t(hass, 'runtime')}</span>
+                    <span class="sp-val">${formatSliderValue(vals.runtime, 1)} ${t(hass, 'min')}</span>
                   </div>
-                  <div class="sp-slider-wrap" @pointerdown=${(e) => startIntentDrag(e, entities.runtime, ' хв', 1, 120, 1)} @pointermove=${moveIntentDrag} @pointerup=${endIntentDrag} @pointercancel=${cancelIntentDrag} @click=${blockTapChange}>
+                  <div class="sp-slider-wrap" @pointerdown=${(e) => startIntentDrag(e, entities.runtime, ' ${t(hass, 'min')}', 1, 120, 1)} @pointermove=${moveIntentDrag} @pointerup=${endIntentDrag} @pointercancel=${cancelIntentDrag} @click=${blockTapChange}>
                     <input class="sp-slider" type="range" min="1" max="120" step="1" .value=${String(vals.runtime)} tabindex="-1" disabled>
                   </div>
                 </div>
 
                 <div class="sp-row">
                   <div class="sp-label-line">
-                    <span class="sp-label">Пауза</span>
-                    <span class="sp-val">${formatSliderValue(vals.pause, 1)} хв</span>
+                    <span class="sp-label">${t(hass, 'pause_time')}</span>
+                    <span class="sp-val">${formatSliderValue(vals.pause, 1)} ${t(hass, 'min')}</span>
                   </div>
-                  <div class="sp-slider-wrap" @pointerdown=${(e) => startIntentDrag(e, entities.pause, ' хв', 1, 120, 1)} @pointermove=${moveIntentDrag} @pointerup=${endIntentDrag} @pointercancel=${cancelIntentDrag} @click=${blockTapChange}>
+                  <div class="sp-slider-wrap" @pointerdown=${(e) => startIntentDrag(e, entities.pause, ' ${t(hass, 'min')}', 1, 120, 1)} @pointermove=${moveIntentDrag} @pointerup=${endIntentDrag} @pointercancel=${cancelIntentDrag} @click=${blockTapChange}>
                     <input class="sp-slider" type="range" min="1" max="120" step="1" .value=${String(vals.pause)} tabindex="-1" disabled>
                   </div>
                 </div>

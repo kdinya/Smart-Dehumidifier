@@ -310,6 +310,7 @@ class MyDehumidifierCard extends LitElement {
   }
 
   setConfig(config) {
+    if (config.arc_radius === undefined) config = { ...config, arc_radius: 150 };
     if (!config || typeof config !== 'object') {
       throw new Error('Невалідна конфігурація картки');
     }
@@ -341,7 +342,7 @@ class MyDehumidifierCard extends LitElement {
         },
         {
           name: 'auto_entity',
-          selector: { entity: { domain: 'input_boolean' } },
+          selector: { entity: { domain: ['switch', 'input_boolean'] } },
         },
         {
           name: 'calc_entity',
@@ -353,27 +354,27 @@ class MyDehumidifierCard extends LitElement {
         },
         {
           name: 'manual_script_entity',
-          selector: { entity: { domain: 'script' } },
+          selector: { entity: { domain: ['button', 'script'] } },
         },
         {
           name: 'delta_entity',
-          selector: { entity: { domain: 'input_number' } },
+          selector: { entity: { domain: ['number', 'input_number'] } },
         },
         {
           name: 'min_rh_entity',
-          selector: { entity: { domain: 'input_number' } },
+          selector: { entity: { domain: ['number', 'input_number'] } },
         },
         {
           name: 'max_rh_entity',
-          selector: { entity: { domain: 'input_number' } },
+          selector: { entity: { domain: ['number', 'input_number'] } },
         },
         {
           name: 'manual_runtime_entity',
-          selector: { entity: { domain: 'input_number' } },
+          selector: { entity: { domain: ['number', 'input_number'] } },
         },
         {
           name: 'manual_pause_runtime_entity',
-          selector: { entity: { domain: 'input_number' } },
+          selector: { entity: { domain: ['number', 'input_number'] } },
         },
       ],
       computeLabel: (schema) => {

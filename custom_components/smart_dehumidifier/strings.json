@@ -3,26 +3,29 @@
     "step": {
       "user": {
         "title": "Smart Dehumidifier",
-        "description": "Вибери осушувач і (опційно) вентилятор. Усі helpers і логіка створяться автоматично.",
+        "description": "Humidifier in bathroom + fan (smart switch). Auto target uses adjacent room humidity + delta.",
         "data": {
-          "name": "Назва",
-          "humidifier_entity": "Осушувач (humidifier)",
-          "fan_entity": "Вентилятор (switch / fan)",
-          "prefix": "Префікс entity (за замовчуванням sd)"
+          "name": "Name",
+          "humidifier_entity": "Dehumidifier (humidifier)",
+          "fan_entity": "Fan switch",
+          "bathroom_humidity_entity": "Bathroom humidity sensor",
+          "room_humidity_entity": "Adjacent room humidity (for auto)",
+          "prefix": "Prefix"
         }
       }
     },
-    "error": {},
     "abort": {
-      "already_configured": "Цей осушувач вже налаштований"
+      "already_configured": "This dehumidifier is already configured"
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Опції Smart Dehumidifier",
+        "title": "Smart Dehumidifier options",
         "data": {
-          "fan_entity": "Вентилятор"
+          "fan_entity": "Fan switch",
+          "bathroom_humidity_entity": "Bathroom humidity",
+          "room_humidity_entity": "Room humidity (auto)"
         }
       }
     }

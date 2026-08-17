@@ -27,6 +27,8 @@ from .const import (
     CONF_HUMIDIFIER,
     CONF_NAME,
     CONF_PREFIX,
+    CONF_BATHROOM_HUMIDITY,
+    CONF_ROOM_HUMIDITY,
     DOMAIN,
     KEY_AUTO,
     KEY_DELTA,
@@ -117,10 +119,13 @@ class SmartDehumidifierCoordinator:
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.hass = hass
         self.entry = entry
-        self.humidifier_entity: str = entry.data[CONF_HUMIDIFIER]
-        self.fan_entity: str | None = entry.data.get(CONF_FAN)
-        self.prefix: str = entry.data.get(CONF_PREFIX, "sd")
-        self.name: str = entry.data.get(CONF_NAME, "Smart Dehumidifier")
+        data = {**entry.data, **entry.options}
+        self.humidifier_entity: str = data[CONF_HUMIDIFIER]
+        self.fan_entity: str | None = data.get(CONF_FAN)
+        self.bathroom_humidity_entity: str | None = data.get(CONF_BATHROOM_HUMIDITY)
+        self.room_humidity_entity: str | None = data.get(CONF_ROOM_HUMIDITY)
+        self.prefix: str = data.get(CONF_PREFIX, "sd")
+        self.name: str = data.get(CONF_NAME, "Smart Dehumidifier")
 
         # Runtime state (not persisted entities)
         self._manual_active = False
@@ -141,6 +146,10 @@ class SmartDehumidifierCoordinator:
         entities_to_track = [self.humidifier_entity]
         if self.fan_entity:
             entities_to_track.append(self.fan_entity)
+        if self.bathroom_humidity_entity:
+            entities_to_track.append(self.bathroom_humidity_entity)
+        if self.room_humidity_entity:
+            entities_to_track.append(self.room_humidity_entity)
 
         self._unsubs.append(
             async_track_state_change_event(
@@ -241,6 +250,14 @@ class SmartDehumidifierCoordinator:
                     if self._manual_active:
                         await self.async_manual_toggle()
 
+        # Humidity sensors changed → refresh recommended
+        if entity_id in (self.room_humidity_entity, self.bathroom_humidity_entity):
+            rec = self.entities.get(KEY_RECOMMENDED)
+            if rec and hasattr(rec, "async_write_ha_state"):
+                rec.async_write_ha_state()
+            if self._is_auto_on():
+                await self._async_sync_target_humidity()
+
         await self._async_update_status_sensor()
 
     async def _async_full_stop(self) -> None:
@@ -272,16 +289,7 @@ class SmartDehumidifierCoordinator:
         if not self._is_auto_on() or not self._is_humidifier_on():
             return
 
-        recommended = self._get_number(KEY_RECOMMENDED, 50)
-        # Prefer the calculated recommended sensor if available
-        rec_id = self.get_entity_id(KEY_RECOMMENDED)
-        if rec_id:
-            state = self.hass.states.get(rec_id)
-            if state and state.state not in ("unavailable", "unknown"):
-                try:
-                    recommended = int(float(state.state))
-                except (ValueError, TypeError):
-                    pass
+        recommended = self.compute_recommended_humidity()
 
         await self.hass.services.async_call(
             "humidifier",
@@ -388,7 +396,60 @@ class SmartDehumidifierCoordinator:
         if status_ent and hasattr(status_ent, "async_write_ha_state"):
             status_ent.async_write_ha_state()
 
+
+    def _read_humidity(self, entity_id: str | None) -> float | None:
+        if not entity_id:
+            return None
+        state = self.hass.states.get(entity_id)
+        if state is None or state.state in ("unavailable", "unknown", None):
+            return None
+        try:
+            return float(state.state)
+        except (TypeError, ValueError):
+            return None
+
+    def compute_recommended_humidity(self) -> int:
+        """Bathroom dehumidifier oriented by adjacent room RH.
+
+        target = room_rh + delta, clamped to [min_rh, max_rh].
+        If room sensor missing → mid of min/max.
+        Bathroom sensor is informational / fallback context.
+        """
+        min_rh = self._get_number(KEY_MIN_RH, 45)
+        max_rh = self._get_number(KEY_MAX_RH, 65)
+        delta = self._get_number(KEY_DELTA, 3)
+        if max_rh < min_rh:
+            min_rh, max_rh = max_rh, min_rh
+
+        room = self._read_humidity(self.room_humidity_entity)
+        bath = self._read_humidity(self.bathroom_humidity_entity)
+
+        if room is not None:
+            target = room + delta
+        elif bath is not None:
+            # only bathroom measured: aim slightly below current when wet, else mid
+            target = min(bath, (min_rh + max_rh) / 2)
+        else:
+            target = (min_rh + max_rh) / 2
+
+        return int(round(max(min_rh, min(max_rh, target))))
+
+    def recommended_attributes(self) -> dict:
+        return {
+            "room_humidity": self._read_humidity(self.room_humidity_entity),
+            "bathroom_humidity": self._read_humidity(self.bathroom_humidity_entity),
+            "delta": self._get_number(KEY_DELTA, 3),
+            "min_rh": self._get_number(KEY_MIN_RH, 45),
+            "max_rh": self._get_number(KEY_MAX_RH, 65),
+            "mode": (
+                "room+delta"
+                if self.room_humidity_entity
+                else ("bathroom" if self.bathroom_humidity_entity else "minmax")
+            ),
+        }
+
     def get_status(self) -> str:
+
         if not self._is_humidifier_on():
             return "off"
         if self._pause_active:

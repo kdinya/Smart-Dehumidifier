@@ -1,50 +1,23 @@
 # Smart Dehumidifier
 
-Версія **1.3.6**
+**v1.4.0**
 
-## Структура
+## Що змінилось
 
-```
-/config/custom_components/smart_dehumidifier/     ← інтеграція (HACS)
-/config/custom_components/smart_dehumidifier/www/  ← JS-картка на диску
-```
-
-Браузер **не** читає шлях на диску. Файли віддаються по HTTP:
-
-```
-/smart_dehumidifier_files/index.js
-```
-
-Копіювання в `/config/www` (**local**) більше не використовується.
+- Повзунки в шестерні працюють з `number.*` (не тільки input_number)
+- Налаштування на сторінці пристрою — у категорії **Configuration** (не основні контроли)
+- Нема секції «Автопанель» у візуальному редакторі картки
+- `arc_radius` за замовчуванням **150**
+- Мови **uk / ru / en** (по мові Home Assistant)
+- Автовологість: **кімната + дельта**, з обмеженням min/max  
+  (ванна = місце осушувача/вентилятора, кімната = орієнтир для розрахунку)
+- Вентилятор = звичайний через smart switch
 
 ## Встановлення
 
-1. HACS → Integration → онови до **1.3.6**
-2. **Повний restart** Home Assistant
-3. Ctrl+F5
-
-### Ресурс (якщо не додався сам)
-
-Settings → Dashboards → Resources → Add:
-
-| URL | Type |
-|-----|------|
-| `/smart_dehumidifier_files/index.js` | **JavaScript Module** |
-
-### Перевірка
-
-Відкрий у браузері:
-
-```
-http://IP:8123/smart_dehumidifier_files/index.js
-```
-
-Має бути JS-код. Якщо 404 — інтеграція не завантажилась (дивись логи `smart_dehumidifier`).
-
-**Не використовуй** шляхи:
-- `homeassistant/custom_components/...`
-- `/config/custom_components/...`
-- `/local/smart_dehumidifier/...` (більше не потрібно)
+1. HACS → Integration → оновити **1.4.0** → restart HA  
+2. Resource: `/smart_dehumidifier_files/index.js` (JavaScript Module)  
+3. Config flow: humidifier, fan switch, **bathroom humidity**, **room humidity**
 
 ## Картка
 
@@ -53,6 +26,16 @@ type: custom:smart-dehumidifier
 entity: humidifier.bathroom
 fan_entity: switch.bathroom_fan
 ```
+
+Entity з інтеграції обери в 🔌 Сутності (status, auto switch, numbers, button).
+
+## Формула авто
+
+```
+target = clamp(room_humidity + delta, min_rh, max_rh)
+```
+
+Якщо сенсора кімнати немає — середина min/max (або логіка по ванній).
 
 ## Ліцензія
 

@@ -6,7 +6,7 @@ from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.const import PERCENTAGE, UnitOfTime
 
 from .const import (
@@ -70,6 +70,7 @@ async def async_setup_entry(
 
 
 class SmartDehumidifierNumber(NumberEntity):
+    _attr_entity_category = EntityCategory.CONFIG
     """Generic number entity for settings."""
 
     _attr_has_entity_name = True
