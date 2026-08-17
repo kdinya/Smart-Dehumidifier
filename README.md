@@ -1,72 +1,50 @@
 # Smart Dehumidifier
 
-Версія **1.3.5**
+Версія **1.3.6**
 
-## Структура репозиторію (нормальна)
-
-```
-Smart-Dehumidifier/
-├── custom_components/
-│   └── smart_dehumidifier/          ← інтеграція
-│       ├── __init__.py
-│       ├── manifest.json
-│       ├── config_flow.py
-│       ├── sensor.py / switch.py / number.py / button.py
-│       ├── frontend.py              ← копіює картку + реєструє ресурс
-│       └── www/                     ← JS-картка (джерело)
-│           ├── index.js             ← точка входу
-│           ├── dehumidifier-card.js
-│           ├── dehumidifier-editor.js
-│           ├── components/
-│           ├── files/
-│           └── fonts/
-├── package/                         ← опційний YAML (не потрібен)
-├── hacs.json
-├── README.md
-└── LICENSE
-```
-
-Після старту HA картка копіюється сюди:
+## Структура
 
 ```
-/config/www/smart_dehumidifier/index.js
+/config/custom_components/smart_dehumidifier/     ← інтеграція (HACS)
+/config/custom_components/smart_dehumidifier/www/  ← JS-картка на диску
 ```
 
-Браузер завантажує **тільки URL** (не шлях файлу):
+Браузер **не** читає шлях на диску. Файли віддаються по HTTP:
 
 ```
-/local/smart_dehumidifier/index.js
+/smart_dehumidifier_files/index.js
 ```
+
+Копіювання в `/config/www` (**local**) більше не використовується.
 
 ## Встановлення
 
-1. HACS → Custom repositories → `https://github.com/kdinya/Smart-Dehumidifier`
-2. Category: **Integration**
-3. Download → **повний restart** Home Assistant
-4. Settings → Devices & services → Add Integration → **Smart Dehumidifier**
-5. Ще один restart → **Ctrl+F5** у браузері
+1. HACS → Integration → онови до **1.3.6**
+2. **Повний restart** Home Assistant
+3. Ctrl+F5
 
-### Ресурс картки (має додатись сам)
+### Ресурс (якщо не додався сам)
 
-Якщо ні — **Settings → Dashboards → Resources → Add**:
+Settings → Dashboards → Resources → Add:
 
-| Поле | Значення |
-|------|----------|
-| URL | `/local/smart_dehumidifier/index.js` |
-| Type | **JavaScript Module** |
-
-**Ніколи** не вказуй шлях типу  
-`homeassistant/custom_components/...` або `/config/custom_components/...` — браузер цього не відкриє.
+| URL | Type |
+|-----|------|
+| `/smart_dehumidifier_files/index.js` | **JavaScript Module** |
 
 ### Перевірка
 
-Відкрий:
+Відкрий у браузері:
 
 ```
-http://IP:8123/local/smart_dehumidifier/index.js
+http://IP:8123/smart_dehumidifier_files/index.js
 ```
 
-Має показати JavaScript. Якщо 404 — зроби restart ще раз і перевір, що інтеграція завантажена (логи).
+Має бути JS-код. Якщо 404 — інтеграція не завантажилась (дивись логи `smart_dehumidifier`).
+
+**Не використовуй** шляхи:
+- `homeassistant/custom_components/...`
+- `/config/custom_components/...`
+- `/local/smart_dehumidifier/...` (більше не потрібно)
 
 ## Картка
 
@@ -75,8 +53,6 @@ type: custom:smart-dehumidifier
 entity: humidifier.bathroom
 fan_entity: switch.bathroom_fan
 ```
-
-Інші entity — у візуальному редакторі (🔌 Сутності).
 
 ## Ліцензія
 

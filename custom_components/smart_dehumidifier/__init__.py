@@ -64,6 +64,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Smart Dehumidifier from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
+    # Ensure card is served even if async_setup was skipped
+    from .frontend import async_register_frontend
+    await async_register_frontend(hass)
+
     coordinator = SmartDehumidifierCoordinator(hass, entry)
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
