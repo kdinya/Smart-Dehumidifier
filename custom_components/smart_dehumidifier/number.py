@@ -71,7 +71,7 @@ async def async_setup_entry(
 
 class SmartDehumidifierNumber(NumberEntity):
     _attr_entity_category = EntityCategory.CONFIG
-    _attr_entity_registry_enabled_default = False
+    _attr_entity_registry_enabled_default = True
     """Generic number entity for settings."""
 
     _attr_has_entity_name = True
@@ -108,8 +108,8 @@ class SmartDehumidifierNumber(NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         self._attr_native_value = value
         self.async_write_ha_state()
-        # If min/max changed, recommended sensor should update
-        if self.key in (KEY_MIN_RH, KEY_MAX_RH):
+        # Delta / min / max → recalculate recommended and push to humidifier if auto
+        if self.key in (KEY_MIN_RH, KEY_MAX_RH, KEY_DELTA):
             rec = self.coordinator.entities.get(KEY_RECOMMENDED)
             if rec:
                 rec.async_write_ha_state()
