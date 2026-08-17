@@ -1,0 +1,264 @@
+# Smart Dehumidifier Package v1.0.0
+# Замініть YOUR_HUMIDIFIER_ENTITY та YOUR_FAN_ENTITY
+
+input_boolean:
+  sd_auto_humidity:
+    name: "SD Auto Humidity"
+    icon: mdi:water-percent
+
+input_number:
+  sd_delta:
+    name: "SD Delta"
+    min: 0.5
+    max: 15
+    step: 0.5
+    initial: 3
+    unit_of_measurement: "%"
+    mode: slider
+  sd_auto_min:
+    name: "SD Auto Min RH"
+    min: 30
+    max: 80
+    step: 1
+    initial: 65
+    unit_of_measurement: "%"
+    mode: slider
+  sd_auto_max:
+    name: "SD Auto Max RH"
+    min: 40
+    max: 95
+    step: 1
+    initial: 85
+    unit_of_measurement: "%"
+    mode: slider
+  sd_manual_runtime:
+    name: "SD Manual Runtime"
+    min: 5
+    max: 180
+    step: 5
+    initial: 20
+    unit_of_measurement: "min"
+    mode: slider
+  sd_manual_pause_runtime:
+    name: "SD Manual Pause Runtime"
+    min: 5
+    max: 180
+    step: 5
+    initial: 20
+    unit_of_measurement: "min"
+    mode: slider
+
+timer:
+  sd_manual_mode:
+    name: "SD Manual Mode"
+    duration: "00:20:00"
+    restore: true
+  sd_manual_pause:
+    name: "SD Manual Pause"
+    duration: "00:20:00"
+    restore: true
+
+template:
+  - sensor:
+      - name: "SD Recommended Humidity"
+        unique_id: sd_recommended_humidity
+        unit_of_measurement: "%"
+        state: >
+          {% set min_rh = states('input_number.sd_auto_min') | float(65) %}
+          {% set max_rh = states('input_number.sd_auto_max') | float(85) %}
+          {{ ((min_rh + max_rh) / 2) | round(0) }}
+      - name: "SD Status"
+        unique_id: sd_status
+        state: >
+          {% set hum = states('humidifier.YOUR_HUMIDIFIER_ENTITY') %}
+          {% set auto = is_state('input_boolean.sd_auto_humidity', 'on') %}
+          {% set manual = is_state('timer.sd_manual_mode', 'active') %}
+          {% set pause = is_state('timer.sd_manual_pause', 'active') %}
+          {% if hum in ['unavailable', 'unknown', 'off'] %}off
+          {% elif pause %}paused
+          {% elif manual %}manual
+          {% elif auto %}auto
+          {% else %}on{% endif %}
+      - name: "SD Status Label"
+        unique_id: sd_status_label
+        state: >
+          {% set s = states('sensor.sd_status') %}
+          {% if s == 'off' %}Вимкнено
+          {% elif s == 'paused' %}Пауза
+          {% elif s == 'manual' %}Ручний
+          {% elif s == 'auto' %}Авто
+          {% else %}Увімкнено{% endif %}
+
+script:
+  sd_manual_toggle:
+    alias: "SD Manual Toggle"
+    mode: restart
+    sequence:
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: timer.sd_manual_pause
+                state: active
+            sequence:
+              - action: timer.cancel
+                target:
+                  entity_id: timer.sd_manual_pause
+              - action: timer.start
+                target:
+                  entity_id: timer.sd_manual_mode
+                data:
+                  duration: "{{ states('input_number.sd_manual_runtime') | int(20) * 60 }}"
+          - conditions:
+              - condition: state
+                entity_id: timer.sd_manual_mode
+                state: active
+            sequence:
+              - action: timer.cancel
+                target:
+                  entity_id: timer.sd_manual_mode
+              - action: timer.start
+                target:
+                  entity_id: timer.sd_manual_pause
+                data:
+                  duration: "{{ states('input_number.sd_manual_pause_runtime') | int(20) * 60 }}"
+          - conditions: []
+            sequence:
+              - action: timer.start
+                target:
+                  entity_id: timer.sd_manual_mode
+                data:
+                  duration: "{{ states('input_number.sd_manual_runtime') | int(20) * 60 }}"
+
+automation:
+  - id: sd_full_stop
+    alias: "SD - Full Stop Handler"
+    mode: restart
+    trigger:
+      - platform: state
+        entity_id: humidifier.YOUR_HUMIDIFIER_ENTITY
+        to: "off"
+    action:
+      - action: timer.cancel
+        target:
+          entity_id: [timer.sd_manual_mode, timer.sd_manual_pause]
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.sd_auto_humidity
+
+  - id: sd_auto_target_sync
+    alias: "SD - Auto Target Humidity Sync"
+    mode: queued
+    trigger:
+      - platform: state
+        entity_id: sensor.sd_recommended_humidity
+      - platform: state
+        entity_id: input_boolean.sd_auto_humidity
+        to: "on"
+    condition:
+      - condition: state
+        entity_id: input_boolean.sd_auto_humidity
+        state: "on"
+      - condition: template
+        value_template: "{{ states('sensor.sd_recommended_humidity') | is_number }}"
+    action:
+      - action: humidifier.set_humidity
+        target:
+          entity_id: humidifier.YOUR_HUMIDIFIER_ENTITY
+        data:
+          humidity: "{{ states('sensor.sd_recommended_humidity') | int(50) }}"
+
+  - id: sd_physical_fan_on
+    alias: "SD - Physical Fan ON"
+    mode: restart
+    trigger:
+      - platform: state
+        entity_id: switch.YOUR_FAN_ENTITY
+        to: "on"
+    action:
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: timer.sd_manual_pause
+                state: active
+            sequence:
+              - action: script.turn_on
+                target:
+                  entity_id: script.sd_manual_toggle
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.sd_auto_humidity
+                state: "off"
+              - condition: state
+                entity_id: timer.sd_manual_mode
+                state: idle
+              - condition: state
+                entity_id: timer.sd_manual_pause
+                state: idle
+            sequence:
+              - action: script.turn_on
+                target:
+                  entity_id: script.sd_manual_toggle
+
+  - id: sd_physical_fan_off
+    alias: "SD - Physical Fan OFF"
+    mode: restart
+    trigger:
+      - platform: state
+        entity_id: switch.YOUR_FAN_ENTITY
+        to: "off"
+    action:
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: timer.sd_manual_mode
+                state: active
+            sequence:
+              - action: script.turn_on
+                target:
+                  entity_id: script.sd_manual_toggle
+
+  - id: sd_master_fan
+    alias: "SD - Master Fan Controller"
+    mode: restart
+    trigger:
+      - platform: state
+        entity_id:
+          - humidifier.YOUR_HUMIDIFIER_ENTITY
+          - input_boolean.sd_auto_humidity
+          - timer.sd_manual_mode
+          - timer.sd_manual_pause
+    action:
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: humidifier.YOUR_HUMIDIFIER_ENTITY
+                state: "off"
+            sequence:
+              - action: switch.turn_off
+                target:
+                  entity_id: switch.YOUR_FAN_ENTITY
+          - conditions:
+              - condition: state
+                entity_id: timer.sd_manual_pause
+                state: active
+            sequence:
+              - action: switch.turn_off
+                target:
+                  entity_id: switch.YOUR_FAN_ENTITY
+          - conditions:
+              - condition: or
+                conditions:
+                  - condition: state
+                    entity_id: timer.sd_manual_mode
+                    state: active
+                  - condition: state
+                    entity_id: input_boolean.sd_auto_humidity
+                    state: "on"
+            sequence:
+              - action: switch.turn_on
+                target:
+                  entity_id: switch.YOUR_FAN_ENTITY
+        default:
+          - action: switch.turn_off
+            target:
+              entity_id: switch.YOUR_FAN_ENTITY

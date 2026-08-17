@@ -1,0 +1,7 @@
+{
+  "name": "Smart Dehumidifier",
+  "filename": "index.js",
+  "render_readme": true,
+  "country": ["UA", "US", "GB", "DE", "PL"],
+  "homeassistant": "2024.1.0"
+}
