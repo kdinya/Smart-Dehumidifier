@@ -13,20 +13,13 @@ const ALIGNMENT_OPTIONS = [
 ];
 
 export const ENTITY_FIELDS = [
-  ent('entity', 'Основний осушувач', 'humidifier', true),
-  ent('fan_entity', 'Вентилятор', 'switch'),
-  ent('status_entity', 'Статус', 'sensor'),
-  ent('auto_entity', 'Авто режим', 'switch'),
-  ent('calc_entity', 'Рекомендована вологість', 'sensor'),
-  ent('current_humidity_entity', 'Вологість у ванній', 'sensor'),
-  ent('room_humidity_entity', 'Вологість у кімнаті (для авто)', 'sensor'),
-  ent('manual_script_entity', 'Ручний режим (button/script)', null),
-  ent('delta_entity', 'Дельта', 'number'),
-  ent('min_rh_entity', 'Мін. вологість авто', 'number'),
-  ent('max_rh_entity', 'Макс. вологість авто', 'number'),
-  ent('manual_runtime_entity', 'Час ручного режиму', 'number'),
-  ent('manual_pause_runtime_entity', 'Час паузи', 'number'),
+  ent('entity', 'Осушувач (humidifier)', 'humidifier', true),
+  ent('fan_entity', 'Вентилятор (switch)', 'switch'),
+  ent('current_humidity_entity', 'Вологість у ванній (опційно)', 'sensor'),
+  ent('room_humidity_entity', 'Вологість у кімнаті (опційно)', 'sensor'),
 ];
+// delta / min / max / timers / status / auto / recommended / manual — підтягуються з інтеграції автоматично
+
 
 export const EDITOR_SCHEMA = [
   section('entities', '🔌', 'Сутності (Entities)', ENTITY_FIELDS),

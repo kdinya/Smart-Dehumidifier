@@ -10,7 +10,8 @@ import { renderSettingsPanel } from './components/settings-panel.js';
 import {
   toFiniteNumber,
   toPositiveNumber,
-  formatElapsedSince // Додано для прямого оновлення часу
+  formatElapsedSince,
+  resolveSdEntities,
 } from './dh-utils.js';
 
 const DEFAULT_BORDER_RADIUS = 28;
@@ -271,15 +272,6 @@ class MyDehumidifierCard extends LitElement {
       type: 'custom:smart-dehumidifier',
       entity: '',
       fan_entity: '',
-      status_entity: '',
-      auto_entity: '',
-      calc_entity: '',
-      manual_script_entity: '',
-      delta_entity: '',
-      min_rh_entity: '',
-      max_rh_entity: '',
-      manual_runtime_entity: '',
-      manual_pause_runtime_entity: '',
     };
   }
 
@@ -321,11 +313,17 @@ class MyDehumidifierCard extends LitElement {
       throw new Error('Невалідна конфігурація картки');
     }
 
-    this._config = {
+    let merged = {
       type: 'custom:smart-dehumidifier',
       ...config,
     };
 
+    // Hard-bind integration helpers (delta/min/max/timers/status/auto/…)
+    if (this._hass) {
+      merged = { ...merged, ...resolveSdEntities(this._hass, merged) };
+    }
+
+    this._config = merged;
     this._trackedEntityIds = extractTrackedEntities(this._config);
     this._syncTicker();
   }
@@ -340,63 +338,23 @@ class MyDehumidifierCard extends LitElement {
         },
         {
           name: 'fan_entity',
-          selector: { entity: { domain: 'switch' } },
-        },
-        {
-          name: 'status_entity',
-          selector: { entity: { domain: 'sensor' } },
-        },
-        {
-          name: 'auto_entity',
-          selector: { entity: { domain: ['switch', 'input_boolean'] } },
-        },
-        {
-          name: 'calc_entity',
-          selector: { entity: { domain: 'sensor' } },
+          selector: { entity: { domain: ['switch', 'fan'] } },
         },
         {
           name: 'current_humidity_entity',
           selector: { entity: { domain: 'sensor' } },
         },
         {
-          name: 'manual_script_entity',
-          selector: { entity: { domain: ['button', 'script'] } },
-        },
-        {
-          name: 'delta_entity',
-          selector: { entity: { domain: ['number', 'input_number'] } },
-        },
-        {
-          name: 'min_rh_entity',
-          selector: { entity: { domain: ['number', 'input_number'] } },
-        },
-        {
-          name: 'max_rh_entity',
-          selector: { entity: { domain: ['number', 'input_number'] } },
-        },
-        {
-          name: 'manual_runtime_entity',
-          selector: { entity: { domain: ['number', 'input_number'] } },
-        },
-        {
-          name: 'manual_pause_runtime_entity',
-          selector: { entity: { domain: ['number', 'input_number'] } },
+          name: 'room_humidity_entity',
+          selector: { entity: { domain: 'sensor' } },
         },
       ],
       computeLabel: (schema) => {
         const labels = {
-          entity: 'Основний осушувач',
+          entity: 'Осушувач',
           fan_entity: 'Вентилятор',
-          status_entity: 'Статус',
-          auto_entity: 'Авто режим',
-          calc_entity: 'Рекомендована вологість',
-          current_humidity_entity: 'Поточна вологість (опційно)',
-          manual_script_entity: 'Скрипт ручного режиму',
-          delta_entity: 'Дельта',
-          min_rh_entity: 'Мін. вологість авто',
-          max_rh_entity: 'Макс. вологість авто',
-          manual_runtime_entity: 'Час ручного режиму',
-          manual_pause_runtime_entity: 'Час паузи',
+          current_humidity_entity: 'Вологість у ванній',
+          room_humidity_entity: 'Вологість у кімнаті',
         };
         return labels[schema.name] || schema.name;
       },
@@ -411,6 +369,11 @@ class MyDehumidifierCard extends LitElement {
 
   set hass(hass) {
     const oldHass = this._hass;
+    if (hass && this._config?.entity) {
+      const resolved = resolveSdEntities(hass, this._config);
+      this._config = { ...this._config, ...resolved };
+      this._trackedEntityIds = extractTrackedEntities(this._config);
+    }
     const oldFanOn = this._isFanRunning(oldHass);
 
     this._hass = hass;

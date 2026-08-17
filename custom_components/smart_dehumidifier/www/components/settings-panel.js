@@ -1,5 +1,6 @@
 import { html } from '../files/lit-proxy.js';
 import { t } from '../i18n.js';
+import { resolveSdEntities } from '../dh-utils.js';
 
 /**
  * Gear settings: min / max / delta / timers + language.
@@ -9,7 +10,7 @@ export function renderSettingsPanel(card, config) {
   if (!card._isSettingsOpen) return html``;
 
   if (card._openSections === undefined) {
-    card._openSections = { auto: true, manual: true, lang: true };
+    card._openSections = { auto: false, manual: false, lang: false };
   }
 
   const hass = card._hass;
@@ -23,13 +24,14 @@ export function renderSettingsPanel(card, config) {
     return Number.isFinite(n) ? n : def;
   };
 
+  const resolved = resolveSdEntities(hass, cfg);
   const entities = {
-    delta: cfg.delta_entity || '',
-    min: cfg.min_rh_entity || '',
-    max: cfg.max_rh_entity || '',
-    calc: cfg.calc_entity || '',
-    runtime: cfg.manual_runtime_entity || '',
-    pause: cfg.manual_pause_runtime_entity || '',
+    delta: resolved.delta_entity || '',
+    min: resolved.min_rh_entity || '',
+    max: resolved.max_rh_entity || '',
+    calc: resolved.calc_entity || '',
+    runtime: resolved.manual_runtime_entity || '',
+    pause: resolved.manual_pause_runtime_entity || '',
   };
 
   const vals = {
@@ -137,9 +139,7 @@ export function renderSettingsPanel(card, config) {
         @input=${onSlide(entityId)}
         @change=${onCommit(entityId)}
       />
-      ${!entityId
-        ? html`<div class="sp-warn">entity не задано в редакторі картки</div>`
-        : html``}
+      ${!entityId ? html`<div class="sp-warn">—</div>` : html``}
     </div>
   `;
 
@@ -247,7 +247,7 @@ export function renderSettingsPanel(card, config) {
 
         <div class="sp-scroll">
           ${missing
-            ? html`<div class="sp-warn">У редакторі картки (🔌 Сутності) обери delta / min / max / timers entity з інтеграції — інакше повзунки не змінять осушувач.</div>`
+            ? html`<div class="sp-warn">Не знайдено entity інтеграції Smart Dehumidifier. Додай інтеграцію і вкажи humidifier у картці.</div>`
             : html``}
 
           <div class="sp-panel">
