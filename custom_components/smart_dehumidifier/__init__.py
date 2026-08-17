@@ -54,7 +54,34 @@ PLATFORMS: list[Platform] = [
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Smart Dehumidifier component."""
     hass.data.setdefault(DOMAIN, {})
+    await _async_register_frontend(hass)
     return True
+
+
+async def _async_register_frontend(hass: HomeAssistant) -> None:
+    """Serve the Lovelace card from /smart_dehumidifier_static/."""
+    from pathlib import Path
+    try:
+        from homeassistant.components.http import StaticPathConfig
+    except ImportError:
+        return
+
+    www = Path(__file__).parent / "www"
+    if not www.is_dir():
+        return
+
+    url_path = f"/{DOMAIN}_static"
+    try:
+        await hass.http.async_register_static_paths(
+            [StaticPathConfig(url_path, str(www), False)]
+        )
+        _LOGGER.info(
+            "Smart Dehumidifier card available at %s/index.js — "
+            "add as Lovelace resource (type: module)",
+            url_path,
+        )
+    except Exception as err:  # already registered on reload
+        _LOGGER.debug("Frontend static path: %s", err)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
