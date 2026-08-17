@@ -59,29 +59,67 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 
 async def _async_register_frontend(hass: HomeAssistant) -> None:
-    """Serve the Lovelace card from /smart_dehumidifier_static/."""
+    """Serve the Lovelace card and auto-add it as a resource."""
     from pathlib import Path
-    try:
-        from homeassistant.components.http import StaticPathConfig
-    except ImportError:
-        return
 
     www = Path(__file__).parent / "www"
     if not www.is_dir():
+        _LOGGER.warning("Smart Dehumidifier www folder missing: %s", www)
         return
 
     url_path = f"/{DOMAIN}_static"
+    resource_url = f"{url_path}/index.js?v={VERSION}"
+
+    # 1) Static files
     try:
+        from homeassistant.components.http import StaticPathConfig
+
         await hass.http.async_register_static_paths(
             [StaticPathConfig(url_path, str(www), False)]
         )
-        _LOGGER.info(
-            "Smart Dehumidifier card available at %s/index.js — "
-            "add as Lovelace resource (type: module)",
-            url_path,
-        )
-    except Exception as err:  # already registered on reload
-        _LOGGER.debug("Frontend static path: %s", err)
+        _LOGGER.info("Card static path registered: %s", url_path)
+    except Exception as err:
+        _LOGGER.debug("Static path register: %s", err)
+
+    # 2) Auto-add Lovelace resource (storage mode)
+    try:
+        from homeassistant.components.lovelace.resources import ResourceStorageCollection
+
+        lovelace = hass.data.get("lovelace")
+        if lovelace is None:
+            return
+
+        # resources can be on lovelace object or under "resources" key depending on version
+        resources = getattr(lovelace, "resources", None)
+        if resources is None and isinstance(lovelace, dict):
+            resources = lovelace.get("resources")
+
+        if resources is None:
+            return
+
+        # Ensure loaded
+        if hasattr(resources, "async_load") and not getattr(resources, "loaded", True):
+            await resources.async_load()
+
+        already = False
+        for item in getattr(resources, "async_items", lambda: [])():
+            url = item.get("url", "")
+            if url_path in url or "smart_dehumidifier" in url:
+                already = True
+                break
+
+        if not already and hasattr(resources, "async_create_item"):
+            await resources.async_create_item(
+                {"res_type": "module", "url": resource_url}
+            )
+            _LOGGER.info("Lovelace resource auto-added: %s", resource_url)
+        else:
+            _LOGGER.info(
+                "Add Lovelace resource manually if needed: %s (type: module)",
+                resource_url,
+            )
+    except Exception as err:
+        _LOGGER.debug("Lovelace resource auto-add skipped: %s", err)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

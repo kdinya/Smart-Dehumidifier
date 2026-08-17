@@ -1,11 +1,17 @@
 {
   "domain": "smart_dehumidifier",
   "name": "Smart Dehumidifier",
-  "codeowners": ["@kdinya"],
+  "codeowners": [
+    "@kdinya"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/kdinya/Smart-Dehumidifier",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/kdinya/Smart-Dehumidifier/issues",
   "requirements": [],
-  "version": "1.3.0"
+  "version": "1.3.2",
+  "dependencies": [
+    "http",
+    "frontend"
+  ]
 }
