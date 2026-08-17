@@ -1,7 +1,7 @@
 """Constants for Smart Dehumidifier."""
 
 DOMAIN = "smart_dehumidifier"
-VERSION = "1.4.1"
+VERSION = "1.5.0"
 
 CONF_HUMIDIFIER = "humidifier_entity"
 CONF_FAN = "fan_entity"
