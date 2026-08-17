@@ -5,7 +5,7 @@ export function renderSettingsPanel(card, config) {
   if (!card._isSettingsOpen) return html``;
 
   if (card._openSections === undefined) {
-    card._openSections = { auto: true, manual: false };
+    card._openSections = { auto: true, manual: false, panel: false, lang: true };
   }
 
   const hass = card._hass;
@@ -33,6 +33,19 @@ export function renderSettingsPanel(card, config) {
 
   const updateValue = (id, val) => {
     if (!id || !hass) return Promise.resolve();
+    // config key: cfg:auto_ui_popup_x
+    if (String(id).startsWith('cfg:')) {
+      const key = String(id).slice(4);
+      const next = { ...config, [key]: Number(val) };
+      card._config = next;
+      card.dispatchEvent(new CustomEvent('config-changed', {
+        detail: { config: next },
+        bubbles: true,
+        composed: true,
+      }));
+      card.requestUpdate();
+      return Promise.resolve();
+    }
     const domain = String(id).split('.')[0];
     const service = domain === 'number' ? 'number' : 'input_number';
     return hass.callService(service, 'set_value', {
@@ -40,6 +53,24 @@ export function renderSettingsPanel(card, config) {
       value: Number(val),
     });
   };
+
+  const setLanguage = (lang) => {
+    const next = { ...config, language: lang };
+    card._config = next;
+    try { localStorage.setItem('sd_card_lang', lang); } catch (_e) {}
+    card.dispatchEvent(new CustomEvent('config-changed', {
+      detail: { config: next },
+      bubbles: true,
+      composed: true,
+    }));
+    card.requestUpdate();
+  };
+
+  const currentLang = (config.language || config.lang || '').toLowerCase() || null;
+  const arcRadius = Number.isFinite(Number(config.arc_radius)) ? Number(config.arc_radius) : 150;
+  const autoX = Number.isFinite(Number(config.auto_ui_popup_x)) ? Number(config.auto_ui_popup_x) : 0;
+  const autoY = Number.isFinite(Number(config.auto_ui_popup_y)) ? Number(config.auto_ui_popup_y) : 92;
+
 
   const toggleSection = (id) => {
     card._openSections[id] = !card._openSections[id];
@@ -249,7 +280,7 @@ export function renderSettingsPanel(card, config) {
         <div class="sp-header">
           <div class="sp-title">
             <span class="sp-title-dot"></span>
-            ${t(hass, 'settings')}
+            ${t(hass, 'settings', config)}
           </div>
           <button class="sp-close" @click=${close}>
             <ha-icon icon="mdi:close"></ha-icon>
@@ -261,7 +292,7 @@ export function renderSettingsPanel(card, config) {
             <button class="sp-head" @click=${() => toggleSection('auto')}>
               <div class="sp-head-left">
                 <div class="sp-icon-wrap"><ha-icon icon="mdi:tune-variant"></ha-icon></div>
-                <span class="sp-head-label">${t(hass, 'auto')}</span>
+                <span class="sp-head-label">${t(hass, 'auto', config)}</span>
               </div>
               <ha-icon class="sp-chevron" icon="mdi:chevron-down"></ha-icon>
             </button>
@@ -270,8 +301,8 @@ export function renderSettingsPanel(card, config) {
               <div class="sp-body">
                 <div class="sp-hud">
                   <div class="sp-hud-meta">
-                    <span class="sp-hud-label">${t(hass, 'recommended')}</span>
-                    <span class="sp-hud-sub">${t(hass, 'room_hint')}</span>
+                    <span class="sp-hud-label">${t(hass, 'recommended', config)}</span>
+                    <span class="sp-hud-sub">${t(hass, 'room_hint', config)}</span>
                   </div>
                   <span class="sp-hud-val">${vals.recommended}%</span>
                 </div>
@@ -280,7 +311,7 @@ export function renderSettingsPanel(card, config) {
 
                 <div class="sp-row">
                   <div class="sp-label-line">
-                    <span class="sp-label">${t(hass, 'delta')}</span>
+                    <span class="sp-label">${t(hass, 'delta', config)}</span>
                     <span class="sp-val">${formatSliderValue(vals.delta, 0.5)} %</span>
                   </div>
                   <div class="sp-slider-wrap" @pointerdown=${(e) => startIntentDrag(e, entities.delta, '%', 0.5, 15, 0.5)} @pointermove=${moveIntentDrag} @pointerup=${endIntentDrag} @pointercancel=${cancelIntentDrag} @click=${blockTapChange}>
@@ -290,7 +321,7 @@ export function renderSettingsPanel(card, config) {
 
                 <div class="sp-row">
                   <div class="sp-label-line">
-                    <span class="sp-label">${t(hass, 'min_rh')}</span>
+                    <span class="sp-label">${t(hass, 'min_rh', config)}</span>
                     <span class="sp-val">${formatSliderValue(vals.min, 1)}%</span>
                   </div>
                   <div class="sp-slider-wrap" @pointerdown=${(e) => startIntentDrag(e, entities.min, '%', 30, 100, 1)} @pointermove=${moveIntentDrag} @pointerup=${endIntentDrag} @pointercancel=${cancelIntentDrag} @click=${blockTapChange}>
@@ -300,7 +331,7 @@ export function renderSettingsPanel(card, config) {
 
                 <div class="sp-row">
                   <div class="sp-label-line">
-                    <span class="sp-label">${t(hass, 'max_rh')}</span>
+                    <span class="sp-label">${t(hass, 'max_rh', config)}</span>
                     <span class="sp-val">${formatSliderValue(vals.max, 1)}%</span>
                   </div>
                   <div class="sp-slider-wrap" @pointerdown=${(e) => startIntentDrag(e, entities.max, '%', 30, 100, 1)} @pointermove=${moveIntentDrag} @pointerup=${endIntentDrag} @pointercancel=${cancelIntentDrag} @click=${blockTapChange}>
@@ -315,7 +346,7 @@ export function renderSettingsPanel(card, config) {
             <button class="sp-head" @click=${() => toggleSection('manual')}>
               <div class="sp-head-left">
                 <div class="sp-icon-wrap"><ha-icon icon="mdi:timer-sand-complete"></ha-icon></div>
-                <span class="sp-head-label">${t(hass, 'timers')}</span>
+                <span class="sp-head-label">${t(hass, 'timers', config)}</span>
               </div>
               <ha-icon class="sp-chevron" icon="mdi:chevron-down"></ha-icon>
             </button>
@@ -324,26 +355,92 @@ export function renderSettingsPanel(card, config) {
               <div class="sp-body">
                 <div class="sp-row">
                   <div class="sp-label-line">
-                    <span class="sp-label">${t(hass, 'runtime')}</span>
-                    <span class="sp-val">${formatSliderValue(vals.runtime, 1)} ${t(hass, 'min')}</span>
+                    <span class="sp-label">${t(hass, 'runtime', config)}</span>
+                    <span class="sp-val">${formatSliderValue(vals.runtime, 1)} ${t(hass, 'min', config)}</span>
                   </div>
-                  <div class="sp-slider-wrap" @pointerdown=${(e) => startIntentDrag(e, entities.runtime, ' ${t(hass, 'min')}', 1, 120, 1)} @pointermove=${moveIntentDrag} @pointerup=${endIntentDrag} @pointercancel=${cancelIntentDrag} @click=${blockTapChange}>
+                  <div class="sp-slider-wrap" @pointerdown=${(e) => startIntentDrag(e, entities.runtime, ' ${t(hass, 'min', config)}', 1, 120, 1)} @pointermove=${moveIntentDrag} @pointerup=${endIntentDrag} @pointercancel=${cancelIntentDrag} @click=${blockTapChange}>
                     <input class="sp-slider" type="range" min="1" max="120" step="1" .value=${String(vals.runtime)} tabindex="-1" disabled>
                   </div>
                 </div>
 
                 <div class="sp-row">
                   <div class="sp-label-line">
-                    <span class="sp-label">${t(hass, 'pause_time')}</span>
-                    <span class="sp-val">${formatSliderValue(vals.pause, 1)} ${t(hass, 'min')}</span>
+                    <span class="sp-label">${t(hass, 'pause_time', config)}</span>
+                    <span class="sp-val">${formatSliderValue(vals.pause, 1)} ${t(hass, 'min', config)}</span>
                   </div>
-                  <div class="sp-slider-wrap" @pointerdown=${(e) => startIntentDrag(e, entities.pause, ' ${t(hass, 'min')}', 1, 120, 1)} @pointermove=${moveIntentDrag} @pointerup=${endIntentDrag} @pointercancel=${cancelIntentDrag} @click=${blockTapChange}>
+                  <div class="sp-slider-wrap" @pointerdown=${(e) => startIntentDrag(e, entities.pause, ' ${t(hass, 'min', config)}', 1, 120, 1)} @pointermove=${moveIntentDrag} @pointerup=${endIntentDrag} @pointercancel=${cancelIntentDrag} @click=${blockTapChange}>
                     <input class="sp-slider" type="range" min="1" max="120" step="1" .value=${String(vals.pause)} tabindex="-1" disabled>
                   </div>
                 </div>
               </div>
             ` : html``}
           </div>
+
+          <div class="sp-panel ${card._openSections.panel ? 'is-open' : ''}">
+            <button class="sp-head" @click=${() => toggleSection('panel')}>
+              <div class="sp-head-left">
+                <div class="sp-icon-wrap"><ha-icon icon="mdi:arrow-all"></ha-icon></div>
+                <span class="sp-head-label">${t(hass, 'auto_panel', config)}</span>
+              </div>
+              <ha-icon class="sp-chevron" icon="mdi:chevron-down"></ha-icon>
+            </button>
+            ${card._openSections.panel ? html`
+              <div class="sp-body">
+                <div class="sp-row">
+                  <div class="sp-label-line">
+                    <span class="sp-label">${t(hass, 'offset_x', config)}</span>
+                    <span class="sp-val">${formatSliderValue(autoX, 1)}</span>
+                  </div>
+                  <div class="sp-slider-wrap" @pointerdown=${(e) => startIntentDrag(e, 'cfg:auto_ui_popup_x', '', -120, 120, 1)} @pointermove=${moveIntentDrag} @pointerup=${endIntentDrag} @pointercancel=${cancelIntentDrag} @click=${blockTapChange}>
+                    <input class="sp-slider" type="range" min="-120" max="120" step="1" .value=${String(autoX)} tabindex="-1" disabled>
+                  </div>
+                </div>
+                <div class="sp-row">
+                  <div class="sp-label-line">
+                    <span class="sp-label">${t(hass, 'offset_y', config)}</span>
+                    <span class="sp-val">${formatSliderValue(autoY, 1)}</span>
+                  </div>
+                  <div class="sp-slider-wrap" @pointerdown=${(e) => startIntentDrag(e, 'cfg:auto_ui_popup_y', '', 0, 220, 1)} @pointermove=${moveIntentDrag} @pointerup=${endIntentDrag} @pointercancel=${cancelIntentDrag} @click=${blockTapChange}>
+                    <input class="sp-slider" type="range" min="0" max="220" step="1" .value=${String(autoY)} tabindex="-1" disabled>
+                  </div>
+                </div>
+                <div class="sp-row">
+                  <div class="sp-label-line">
+                    <span class="sp-label">${t(hass, 'arc_radius', config)}</span>
+                    <span class="sp-val">${formatSliderValue(arcRadius, 1)}</span>
+                  </div>
+                  <div class="sp-slider-wrap" @pointerdown=${(e) => startIntentDrag(e, 'cfg:arc_radius', '', 50, 400, 1)} @pointermove=${moveIntentDrag} @pointerup=${endIntentDrag} @pointercancel=${cancelIntentDrag} @click=${blockTapChange}>
+                    <input class="sp-slider" type="range" min="50" max="400" step="1" .value=${String(arcRadius)} tabindex="-1" disabled>
+                  </div>
+                </div>
+              </div>
+            ` : html``}
+          </div>
+
+          <div class="sp-panel ${card._openSections.lang ? 'is-open' : ''}">
+            <button class="sp-head" @click=${() => toggleSection('lang')}>
+              <div class="sp-head-left">
+                <div class="sp-icon-wrap"><ha-icon icon="mdi:translate"></ha-icon></div>
+                <span class="sp-head-label">${t(hass, 'language', config)}</span>
+              </div>
+              <ha-icon class="sp-chevron" icon="mdi:chevron-down"></ha-icon>
+            </button>
+            ${card._openSections.lang ? html`
+              <div class="sp-body">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  ${['uk','ru','en'].map((code) => html`
+                    <button
+                      type="button"
+                      style="flex:1;min-width:64px;padding:10px 8px;border-radius:12px;border:1px solid ${currentLang===code?'rgba(0,212,255,0.55)':'rgba(255,255,255,0.08)'};background:${currentLang===code?'rgba(0,212,255,0.12)':'rgba(255,255,255,0.04)'};color:#fff;font-weight:700;letter-spacing:1px;cursor:pointer;"
+                      @click=${() => setLanguage(code)}
+                    >${code.toUpperCase()}</button>
+                  `)}
+                </div>
+                <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:4px;">${t(hass, 'beta', config)}</div>
+              </div>
+            ` : html``}
+          </div>
+
         </div>
       </div>
     </div>

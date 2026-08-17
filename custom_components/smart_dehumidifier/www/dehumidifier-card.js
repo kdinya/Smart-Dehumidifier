@@ -311,6 +311,12 @@ class MyDehumidifierCard extends LitElement {
 
   setConfig(config) {
     if (config.arc_radius === undefined) config = { ...config, arc_radius: 150 };
+    if (!config.language && !config.lang) {
+      try {
+        const stored = localStorage.getItem('sd_card_lang');
+        if (stored) config = { ...config, language: stored };
+      } catch (_e) {}
+    }
     if (!config || typeof config !== 'object') {
       throw new Error('Невалідна конфігурація картки');
     }

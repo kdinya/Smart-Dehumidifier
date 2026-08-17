@@ -71,6 +71,7 @@ async def async_setup_entry(
 
 class SmartDehumidifierNumber(NumberEntity):
     _attr_entity_category = EntityCategory.CONFIG
+    _attr_entity_registry_enabled_default = False
     """Generic number entity for settings."""
 
     _attr_has_entity_name = True

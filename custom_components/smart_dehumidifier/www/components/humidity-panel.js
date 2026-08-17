@@ -1,3 +1,4 @@
+import { t } from '../i18n.js';
 import { html } from '../files/lit-proxy.js';
 
 import {
@@ -223,7 +224,7 @@ export function renderHumidityPanel(card, config = {}) {
   const autoPopupBg = config.auto_ui_popup_bg || 'linear-gradient(145deg, #2d3945 0%, #182029 100%)';
   const autoPopupBgActive = config.auto_ui_popup_bg_active || 'linear-gradient(145deg, #20394d 0%, #152433 100%)';
   const autoPopupIcon = config.auto_ui_icon || 'mdi:water-percent';
-  const autoLabelText = config.auto_ui_label_text || 'Авто';
+  const autoLabelText = config.auto_ui_label_text || t(card._hass, 'auto', config);
 
   const autoPopupX = toFiniteNumber(config.auto_ui_popup_x, 0);
   const autoPopupY = toFiniteNumber(config.auto_ui_popup_y, 92);

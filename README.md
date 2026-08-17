@@ -1,41 +1,63 @@
 # Smart Dehumidifier
 
-**v1.4.0**
+> **BETA** — проєкт ще налаштовується. Структура й API можуть змінюватись.
 
-## Що змінилось
+Версія **1.4.1**
 
-- Повзунки в шестерні працюють з `number.*` (не тільки input_number)
-- Налаштування на сторінці пристрою — у категорії **Configuration** (не основні контроли)
-- Нема секції «Автопанель» у візуальному редакторі картки
-- `arc_radius` за замовчуванням **150**
-- Мови **uk / ru / en** (по мові Home Assistant)
-- Автовологість: **кімната + дельта**, з обмеженням min/max  
-  (ванна = місце осушувача/вентилятора, кімната = орієнтир для розрахунку)
-- Вентилятор = звичайний через smart switch
+## Структура репозиторію (стандарт HACS Integration)
 
-## Встановлення
+```
+Smart-Dehumidifier/
+├── custom_components/
+│   └── smart_dehumidifier/
+│       ├── __init__.py          # логіка + fan / auto / manual
+│       ├── manifest.json
+│       ├── config_flow.py       # UI: humidifier, fan, room + bathroom RH
+│       ├── sensor.py / switch.py / number.py / button.py
+│       ├── frontend.py          # HTTP: /smart_dehumidifier_files/
+│       └── www/                 # Lovelace card
+│           ├── index.js
+│           ├── dehumidifier-card.js
+│           ├── components/
+│           └── i18n.js          # uk / ru / en
+├── hacs.json
+├── README.md
+└── LICENSE
+```
 
-1. HACS → Integration → оновити **1.4.0** → restart HA  
-2. Resource: `/smart_dehumidifier_files/index.js` (JavaScript Module)  
-3. Config flow: humidifier, fan switch, **bathroom humidity**, **room humidity**
+## Встановлення (бета)
+
+1. HACS → **Integration** → `https://github.com/kdinya/Smart-Dehumidifier`
+2. Restart Home Assistant
+3. Settings → Devices & services → **Smart Dehumidifier**
+4. Вкажи: humidifier, fan (smart switch), вологість **ванної**, вологість **кімнати**
+5. Resource: `/smart_dehumidifier_files/index.js` (JavaScript Module)
+6. Ctrl+F5
 
 ## Картка
 
+Налаштування — **тільки в шестерні на картці** (не на сторінці пристрою):
+
+- Дельта / min / max / таймери (повзунки → `number.*`)
+- Автопанель: зміщення **X / Y**, радіус дуги (за замовч. **150**)
+- Мова: **UK / RU / EN**
+
 ```yaml
 type: custom:smart-dehumidifier
-entity: humidifier.bathroom
-fan_entity: switch.bathroom_fan
+entity: humidifier.xxx
+fan_entity: switch.xxx
+language: uk
+arc_radius: 150
 ```
 
-Entity з інтеграції обери в 🔌 Сутності (status, auto switch, numbers, button).
-
-## Формула авто
+## Автовологість
 
 ```
-target = clamp(room_humidity + delta, min_rh, max_rh)
+ціль = clamp(вологість_кімнати + дельта, min, max)
 ```
 
-Якщо сенсора кімнати немає — середина min/max (або логіка по ванній).
+Осушувач і вентилятор у **ванні**; орієнтир — **сусідня кімната**.  
+Якщо сенсора кімнати немає — інший розрахунок (ванна / середина діапазону).
 
 ## Ліцензія
 
