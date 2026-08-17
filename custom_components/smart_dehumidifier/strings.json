@@ -1,0 +1,30 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Smart Dehumidifier",
+        "description": "Вибери осушувач і (опційно) вентилятор. Усі helpers і логіка створяться автоматично.",
+        "data": {
+          "name": "Назва",
+          "humidifier_entity": "Осушувач (humidifier)",
+          "fan_entity": "Вентилятор (switch / fan)",
+          "prefix": "Префікс entity (за замовчуванням sd)"
+        }
+      }
+    },
+    "error": {},
+    "abort": {
+      "already_configured": "Цей осушувач вже налаштований"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Опції Smart Dehumidifier",
+        "data": {
+          "fan_entity": "Вентилятор"
+        }
+      }
+    }
+  }
+}
