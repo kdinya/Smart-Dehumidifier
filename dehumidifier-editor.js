@@ -2,7 +2,7 @@ import { html, css, LitElement } from './files/lit-proxy.js';
 import { EDITOR_SCHEMA, ENTITY_FIELDS } from './visual-editor-config.js';
 
 const STORAGE_KEY = 'dh-editor-open-sections-v5';
-const EDITOR_VERSION = '1.0.1';
+const EDITOR_VERSION = '1.1.0';
 
 function fireEvent(node, type, detail = {}, options = {}) {
   const event = new CustomEvent(type, {
@@ -567,17 +567,14 @@ class DehumidifierEditor extends LitElement {
   }
 }
 
-// Always (re)define so HACS updates apply after hard refresh
-if (customElements.get('my-dehumidifier-editor-v2')) {
-  console.info(`Smart Dehumidifier editor ${EDITOR_VERSION} loaded (element already defined — hard refresh if UI is old)`);
-} else {
-  customElements.define('my-dehumidifier-editor-v2', DehumidifierEditor);
+if (!customElements.get('smart-dehumidifier-editor')) {
+  customElements.define('smart-dehumidifier-editor', DehumidifierEditor);
 }
 
 window.customCards = window.customCards || [];
-if (!window.customCards.some((c) => c.type === 'my-dehumidifier')) {
+if (!window.customCards.some((c) => c.type === 'smart-dehumidifier')) {
   window.customCards.push({
-    type: 'my-dehumidifier',
+    type: 'smart-dehumidifier',
     name: 'Smart Dehumidifier',
     description: 'Premium dehumidifier card with entity pickers',
     preview: true,

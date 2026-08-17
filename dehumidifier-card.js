@@ -263,12 +263,12 @@ class MyDehumidifierCard extends LitElement {
   `;
 
   static getConfigElement() {
-    return document.createElement('my-dehumidifier-editor-v2');
+    return document.createElement('smart-dehumidifier-editor');
   }
 
   static getStubConfig() {
     return {
-      type: 'custom:my-dehumidifier',
+      type: 'custom:smart-dehumidifier',
       entity: '',
       fan_entity: '',
       status_entity: '',
@@ -315,7 +315,7 @@ class MyDehumidifierCard extends LitElement {
     }
 
     this._config = {
-      type: 'custom:my-dehumidifier',
+      type: 'custom:smart-dehumidifier',
       ...config,
     };
 
@@ -620,16 +620,16 @@ class MyDehumidifierCard extends LitElement {
   }
 }
 
-if (!customElements.get('my-dehumidifier')) {
-  customElements.define('my-dehumidifier', MyDehumidifierCard);
+if (!customElements.get('smart-dehumidifier')) {
+  customElements.define('smart-dehumidifier', MyDehumidifierCard);
 }
 
 export { MyDehumidifierCard };
 
 window.customCards = window.customCards || [];
-if (!window.customCards.some((c) => c.type === 'my-dehumidifier')) {
+if (!window.customCards.some((c) => c.type === 'smart-dehumidifier')) {
   window.customCards.push({
-    type: 'my-dehumidifier',
+    type: 'smart-dehumidifier',
     name: 'Smart Dehumidifier',
     description: 'Преміум картка осушувача з візуальним редактором',
     preview: true,

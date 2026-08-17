@@ -9,17 +9,18 @@ import {
   DEFAULT_LAYOUT_BASE_WIDTH,
 } from '../dh-utils.js';
 
-// Глобальне завантаження локального шрифту (обхід ізоляції Shadow DOM)
-// Шлях my-dehumidifier/fonts у папці www відповідає /local/my-dehumidifier/fonts
-if (!document.getElementById('dh-local-7seg-font')) {
+// Шрифт 7segment — відносний шлях від цього модуля (HACS або /local), без залежності від старого dehumidifier
+if (!document.getElementById('sd-7seg-font')) {
+  const fontUrl = new URL('../fonts/7segment.woff', import.meta.url).href;
   const fontStyle = document.createElement('style');
-  fontStyle.id = 'dh-local-7seg-font';
-  fontStyle.innerHTML = `
+  fontStyle.id = 'sd-7seg-font';
+  fontStyle.textContent = `
     @font-face {
       font-family: '7segment';
-      src: url('/local/my-dehumidifier/fonts/7segment.woff') format('woff');
+      src: url('${fontUrl}') format('woff');
       font-weight: normal;
       font-style: normal;
+      font-display: swap;
     }
   `;
   document.head.appendChild(fontStyle);
