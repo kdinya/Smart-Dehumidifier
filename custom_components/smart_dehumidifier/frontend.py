@@ -1,4 +1,10 @@
-"""Register Lovelace card frontend resources."""
+"""Serve and auto-register the Lovelace card.
+
+Standard layout:
+  custom_components/smart_dehumidifier/www/   ← source (in the integration)
+  /config/www/smart_dehumidifier/             ← copied on startup
+  URL: /local/smart_dehumidifier/index.js     ← what the browser loads
+"""
 
 from __future__ import annotations
 
@@ -6,81 +12,76 @@ import logging
 import shutil
 from pathlib import Path
 
-from homeassistant.components.http import StaticPathConfig
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import Event, HomeAssistant
 from homeassistant.helpers.event import async_call_later
 
 from .const import DOMAIN, VERSION
 
 _LOGGER = logging.getLogger(__name__)
 
-URL_BASE = f"/{DOMAIN}_static"
-CARD_URL = f"{URL_BASE}/index.js"
+# Browser URL (never a filesystem path!)
+LOCAL_DIR = "smart_dehumidifier"
+CARD_URL = f"/local/{LOCAL_DIR}/index.js"
 CARD_URL_VERSIONED = f"{CARD_URL}?v={VERSION}"
-
-# Fallback under /local/ (config/www)
-LOCAL_DIR_NAME = "smart_dehumidifier"
-LOCAL_CARD_URL = f"/local/{LOCAL_DIR_NAME}/index.js"
-LOCAL_CARD_URL_VERSIONED = f"{LOCAL_CARD_URL}?v={VERSION}"
 
 
 async def async_register_frontend(hass: HomeAssistant) -> None:
-    """Register static path + auto-add Lovelace resource."""
-    www = Path(__file__).parent / "www"
-    if not www.is_dir():
-        _LOGGER.error("www folder missing at %s", www)
+    """Copy card to /config/www and register Lovelace resource."""
+    src = Path(__file__).parent / "www"
+    if not src.is_dir():
+        _LOGGER.error("Card source missing: %s", src)
         return
 
-    # 1) Static path from custom_components
-    try:
-        await hass.http.async_register_static_paths(
-            [StaticPathConfig(URL_BASE, str(www), False)]
-        )
-        _LOGGER.info("Static path registered: %s", URL_BASE)
-    except Exception as err:
-        _LOGGER.debug("Static path: %s", err)
+    # Copy into HA's www folder → available as /local/smart_dehumidifier/
+    await hass.async_add_executor_job(_sync_www, hass, src)
 
-    # 2) Fallback copy to config/www (always works as /local/...)
-    await hass.async_add_executor_job(_copy_to_local_www, hass, www)
+    # Register resource after startup (Lovelace may not be ready yet)
+    async def _later(_now=None) -> None:
+        await _async_register_resource(hass)
 
-    # 3) Register resource after HA fully started (lovelace may not be ready yet)
     if hass.is_running:
-        async_call_later(hass, 3, lambda _now: hass.async_create_task(_async_add_resource(hass)))
+        async_call_later(hass, 5, lambda now: hass.async_create_task(_later()))
     else:
-        hass.bus.async_listen_once(
-            "homeassistant_started",
-            lambda _event: hass.async_create_task(_async_add_resource(hass)),
-        )
+        async def _on_start(_event: Event) -> None:
+            async_call_later(hass, 5, lambda now: hass.async_create_task(_later()))
+
+        hass.bus.async_listen_once("homeassistant_started", _on_start)
 
 
-def _copy_to_local_www(hass: HomeAssistant, www: Path) -> None:
-    """Copy card files into config/www/smart_dehumidifier for /local/ access."""
+def _sync_www(hass: HomeAssistant, src: Path) -> None:
+    """Mirror www/ → config/www/smart_dehumidifier/."""
+    dest = Path(hass.config.path("www")) / LOCAL_DIR
     try:
-        dest = Path(hass.config.path("www")) / LOCAL_DIR_NAME
         dest.mkdir(parents=True, exist_ok=True)
-        # Copy tree
-        for src in www.rglob("*"):
-            if src.is_file():
-                rel = src.relative_to(www)
-                target = dest / rel
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(src, target)
-        _LOGGER.info("Card copied to /local/%s/ (fallback)", LOCAL_DIR_NAME)
+        # Remove stale files, then copy fresh
+        if dest.exists():
+            for old in dest.rglob("*"):
+                if old.is_file():
+                    # keep copying over
+                    pass
+        for item in src.rglob("*"):
+            if not item.is_file():
+                continue
+            rel = item.relative_to(src)
+            target = dest / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(item, target)
+        _LOGGER.info(
+            "Smart Dehumidifier card ready at %s (from %s)",
+            CARD_URL,
+            src,
+        )
     except Exception as err:
-        _LOGGER.warning("Could not copy card to www: %s", err)
+        _LOGGER.exception("Failed to copy card to www: %s", err)
 
 
-async def _async_add_resource(hass: HomeAssistant) -> None:
-    """Add Lovelace resource if missing (storage mode only)."""
-    # Prefer /local/ fallback URL — most reliable after copy
-    urls_to_try = [LOCAL_CARD_URL_VERSIONED, CARD_URL_VERSIONED]
-
-    resources = await _get_resources(hass)
+async def _async_register_resource(hass: HomeAssistant) -> None:
+    """Add /local/smart_dehumidifier/index.js to Lovelace resources if missing."""
+    resources = _find_resources(hass)
     if resources is None:
         _LOGGER.warning(
-            "Lovelace resources unavailable (YAML mode?). "
-            "Add manually: %s type module",
-            LOCAL_CARD_URL,
+            "Lovelace resources not available. Add manually: %s (type: module)",
+            CARD_URL,
         )
         return
 
@@ -90,60 +91,45 @@ async def _async_add_resource(hass: HomeAssistant) -> None:
     except Exception:
         pass
 
-    existing_urls = []
     try:
-        items = resources.async_items() if hasattr(resources, "async_items") else []
-        existing_urls = [i.get("url", "") for i in items]
+        items = list(resources.async_items()) if hasattr(resources, "async_items") else []
+    except Exception:
+        items = []
+
+    for item in items:
+        url = (item.get("url") or "") if isinstance(item, dict) else ""
+        if "smart_dehumidifier" in url:
+            _LOGGER.info("Card resource already registered: %s", url)
+            return
+
+    try:
+        await resources.async_create_item(
+            {"res_type": "module", "url": CARD_URL_VERSIONED}
+        )
+        _LOGGER.info("Card resource registered: %s", CARD_URL_VERSIONED)
     except Exception as err:
-        _LOGGER.debug("List resources: %s", err)
-
-    # Already registered?
-    for u in existing_urls:
-        if "smart_dehumidifier" in u:
-            _LOGGER.info("Card resource already present: %s", u)
-            return
-
-    # Create
-    for url in urls_to_try:
-        try:
-            await resources.async_create_item({"res_type": "module", "url": url})
-            _LOGGER.info("Lovelace resource auto-added: %s", url)
-            return
-        except Exception as err:
-            _LOGGER.debug("Create resource %s failed: %s", url, err)
-
-    _LOGGER.warning(
-        "Could not auto-add resource. Add manually in "
-        "Settings → Dashboards → Resources: %s (JavaScript Module)",
-        LOCAL_CARD_URL,
-    )
+        _LOGGER.warning(
+            "Could not auto-add resource (%s). Add manually: %s (JavaScript Module)",
+            err,
+            CARD_URL,
+        )
 
 
-async def _get_resources(hass: HomeAssistant):
-    """Get Lovelace ResourceStorageCollection if available."""
-    # Modern HA: hass.data["lovelace"] can be a dict of dashboards or LovelaceData
+def _find_resources(hass: HomeAssistant):
+    """Locate ResourceStorageCollection across HA versions."""
     lovelace = hass.data.get("lovelace")
     if lovelace is None:
         return None
 
-    # Direct attribute
-    resources = getattr(lovelace, "resources", None)
-    if resources is not None:
-        return resources
+    res = getattr(lovelace, "resources", None)
+    if res is not None and hasattr(res, "async_create_item"):
+        return res
 
-    # Dict structure (multi-dashboard)
     if isinstance(lovelace, dict):
-        # Prefer default dashboard resources
-        for key in ("resources", "dashboards"):
-            if key in lovelace:
-                obj = lovelace[key]
-                res = getattr(obj, "resources", obj if hasattr(obj, "async_create_item") else None)
-                if res is not None and hasattr(res, "async_create_item"):
-                    return res
-        # Search values
         for val in lovelace.values():
-            res = getattr(val, "resources", None)
-            if res is not None and hasattr(res, "async_create_item"):
-                return res
-
+            r = getattr(val, "resources", None)
+            if r is not None and hasattr(r, "async_create_item"):
+                return r
+            if hasattr(val, "async_create_item"):
+                return val
     return None
