@@ -63,16 +63,23 @@ class SmartDehumidifierStatusSensor(SmartDehumidifierBaseSensor):
 
 
 class SmartDehumidifierRecommendedSensor(SmartDehumidifierBaseSensor):
-    """Recommended target humidity based on adjacent room RH + delta."""
+    """Recommended target humidity: room RH + delta (auto mode only)."""
 
     def __init__(self, coordinator: SmartDehumidifierCoordinator) -> None:
         super().__init__(coordinator, KEY_RECOMMENDED, "Recommended Humidity")
         self._attr_native_unit_of_measurement = "%"
         self._attr_icon = "mdi:water-percent"
         self._attr_device_class = SensorDeviceClass.HUMIDITY
+        self._attr_entity_registry_enabled_default = coordinator.auto_mode_available
 
     @property
-    def native_value(self) -> int:
+    def available(self) -> bool:
+        return self.coordinator.auto_mode_available
+
+    @property
+    def native_value(self) -> int | None:
+        if not self.coordinator.auto_mode_available:
+            return None
         return self.coordinator.compute_recommended_humidity()
 
     @property

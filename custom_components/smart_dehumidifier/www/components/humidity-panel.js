@@ -1,5 +1,5 @@
-import { t } from '../i18n.js?v=1.6.6';
-import { html } from '../files/lit-proxy.js?v=1.6.6';
+import { t } from '../i18n.js?v=1.7.0';
+import { html } from '../files/lit-proxy.js?v=1.7.0';
 
 import {
   toFiniteNumber,
@@ -10,9 +10,10 @@ import {
   readNumberState,
   callHA,
   isMainEntityOn,
+  resolveSdEntities,
   DEFAULT_LAYOUT_BASE_WIDTH,
   DEFAULT_CONTROLS_MAX_WIDTH,
-} from '../dh-utils.js?v=1.6.6';
+} from '../dh-utils.js?v=1.7.0';
 
 const PANEL_BASE_WIDTH = 240;
 const DEFAULT_TARGET = 50;
@@ -52,14 +53,45 @@ function readTargetState(card, config, fallback = DEFAULT_TARGET) {
   };
 }
 
+function resolvedConfig(card, config) {
+  const hass = card?._hass;
+  const base = config || {};
+  if (!hass) return base;
+  const resolved = resolveSdEntities(hass, base);
+  return { ...base, ...resolved };
+}
+
+/** Auto mode only when room humidity is configured (or auto entities exist). */
+function isAutoModeAvailable(card, config) {
+  const cfg = resolvedConfig(card, config);
+  if (cfg.room_humidity_entity && getEntityState(card, cfg.room_humidity_entity)) {
+    return true;
+  }
+  // Integration status attribute
+  const statusId = cfg.status_entity;
+  const st = statusId ? getEntityState(card, statusId) : null;
+  if (st?.attributes?.auto_available === true) return true;
+  if (st?.attributes?.auto_available === false) return false;
+  // Fallback: helper entities present (not disabled)
+  if (cfg.auto_entity && getEntityState(card, cfg.auto_entity)) return true;
+  if (cfg.delta_entity && getEntityState(card, cfg.delta_entity)) return true;
+  return false;
+}
+
 function isAutoEnabled(card, config) {
-  const entityId = config.auto_entity;
+  if (!isAutoModeAvailable(card, config)) return false;
+  const cfg = resolvedConfig(card, config);
+  const entityId = cfg.auto_entity;
   return getEntityState(card, entityId)?.state === 'on';
 }
 
 function setAutoEnabled(card, config, enabled) {
-  const entityId = config.auto_entity;
-  callHA(card, 'input_boolean', enabled ? 'turn_on' : 'turn_off', {
+  if (!isAutoModeAvailable(card, config)) return;
+  const cfg = resolvedConfig(card, config);
+  const entityId = cfg.auto_entity;
+  if (!entityId) return;
+  const domain = String(entityId).split('.')[0] || 'switch';
+  callHA(card, domain, enabled ? 'turn_on' : 'turn_off', {
     entity_id: entityId,
   });
 }
@@ -146,7 +178,7 @@ function toggleAutoPopup(card, config) {
 }
 
 function handleCenterClick(card, config) {
-  const autoShow = config.auto_ui_show ?? true;
+  const autoShow = (config.auto_ui_show ?? true) && isAutoModeAvailable(card, config);
   if (!autoShow) return;
 
   if (isAutoEnabled(card, config)) {
@@ -171,7 +203,8 @@ function handleAutoButtonClick(card, config, autoEnabled) {
   setAutoEnabled(card, config, true);
   
   // МИТТЄВИЙ СТРИБОК: Одразу переводимо цифри і повзунок на авто-рекомендацію
-  const calcEntity = config.calc_entity;
+  const cfgR = resolvedConfig(card, config);
+  const calcEntity = cfgR.calc_entity || config.calc_entity;
   const recommendedRh = readNumberState(card, calcEntity);
   if (Number.isFinite(recommendedRh)) {
     card._targetHumidity = Math.round(clamp(recommendedRh, 0, 100));
@@ -219,7 +252,7 @@ export function renderHumidityPanel(card, config = {}) {
   const tgtLabelSize = toPositiveNumber(config.tgt_label_size, 9);
   const panelBottom = toFiniteNumber(config.hum_panel_bottom, 110);
 
-  const autoShow = config.auto_ui_show ?? true;
+  const autoShow = (config.auto_ui_show ?? true) && isAutoModeAvailable(card, config);
   const autoAccentColor = config.auto_ui_color || '#7fc8ff';
   const autoPopupBg = config.auto_ui_popup_bg || 'linear-gradient(145deg, #2d3945 0%, #182029 100%)';
   const autoPopupBgActive = config.auto_ui_popup_bg_active || 'linear-gradient(145deg, #20394d 0%, #152433 100%)';
@@ -249,7 +282,8 @@ export function renderHumidityPanel(card, config = {}) {
   const autoPopupOpen = !!card._humPanelAutoPopupOpen;
   const autoEnabled = isAutoEnabled(card, config);
 
-  const calcEntity = config.calc_entity;
+  const cfgR = resolvedConfig(card, config);
+  const calcEntity = cfgR.calc_entity || config.calc_entity;
   const recommendedRh = readNumberState(card, calcEntity);
 
   const stateData = readTargetState(card, config, DEFAULT_TARGET);

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 DOMAIN = "smart_dehumidifier"
-VERSION = "1.6.6"
+VERSION = "1.7.0"
 
 CONF_HUMIDIFIER = "humidifier_entity"
 CONF_FAN = "fan_entity"
@@ -30,6 +30,15 @@ KEY_PAUSE_RUNTIME = "pause_runtime"
 KEY_STATUS = "status"
 KEY_RECOMMENDED = "recommended"
 KEY_MANUAL_TOGGLE = "manual_toggle"
+
+# Entities only relevant when room humidity sensor is configured (auto mode)
+AUTO_MODE_KEYS = (
+    KEY_AUTO,
+    KEY_DELTA,
+    KEY_MIN_RH,
+    KEY_MAX_RH,
+    KEY_RECOMMENDED,
+)
 
 ATTR_ROOM_HUMIDITY = "room_humidity"
 ATTR_BATHROOM_HUMIDITY = "bathroom_humidity"

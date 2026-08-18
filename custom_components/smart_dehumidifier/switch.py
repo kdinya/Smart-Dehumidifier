@@ -25,7 +25,7 @@ async def async_setup_entry(
 
 
 class SmartDehumidifierAutoSwitch(SwitchEntity, RestoreEntity):
-    """Auto humidity mode switch. State is restored across restarts."""
+    """Auto humidity mode — only meaningful with a room humidity sensor."""
 
     _attr_has_entity_name = True
     _attr_icon = "mdi:water-percent"
@@ -37,6 +37,8 @@ class SmartDehumidifierAutoSwitch(SwitchEntity, RestoreEntity):
         self._attr_unique_id = f"{coordinator.entry.entry_id}_{KEY_AUTO}"
         self._attr_name = "Auto Humidity"
         self._is_on = False
+        # Hidden on device page when room sensor is not configured
+        self._attr_entity_registry_enabled_default = coordinator.auto_mode_available
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)},
             name=coordinator.name,
@@ -46,18 +48,30 @@ class SmartDehumidifierAutoSwitch(SwitchEntity, RestoreEntity):
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
+        if not self.coordinator.auto_mode_available:
+            self._is_on = False
+            return
         last = await self.async_get_last_state()
         if last is not None and last.state == "on":
             self._is_on = True
-            # Re-sync after restore if needed
             self.hass.async_create_task(self.coordinator.async_sync_target_humidity())
             self.hass.async_create_task(self.coordinator.async_update_fan())
 
     @property
     def is_on(self) -> bool:
+        if not self.coordinator.auto_mode_available:
+            return False
         return self._is_on
 
+    @property
+    def available(self) -> bool:
+        return self.coordinator.auto_mode_available
+
     async def async_turn_on(self, **kwargs) -> None:
+        if not self.coordinator.auto_mode_available:
+            self._is_on = False
+            self.async_write_ha_state()
+            return
         self._is_on = True
         self.async_write_ha_state()
         await self.coordinator.async_sync_target_humidity()

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.0 — 2026-08-18
+
+### Auto mode only with room humidity sensor
+- **Є** `room_humidity` → Auto, Delta, Min/Max RH, Recommended
+- **Немає** room humidity → авто немає; ціль вручну + гістерезис осушувача
+- На **сторінці пристрою** auto-entity приховуються/показуються автоматично
+- Шестерня і панель авто на картці — лише коли авто доступне
+
 ## 1.6.6 — 2026-08-18
 
 ### Fix

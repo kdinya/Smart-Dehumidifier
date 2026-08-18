@@ -1,6 +1,6 @@
-import { html } from '../files/lit-proxy.js?v=1.6.6';
-import { t } from '../i18n.js?v=1.6.6';
-import { resolveSdEntities, sdLog } from '../dh-utils.js?v=1.6.6';
+import { html } from '../files/lit-proxy.js?v=1.7.0';
+import { t } from '../i18n.js?v=1.7.0';
+import { resolveSdEntities, sdLog } from '../dh-utils.js?v=1.7.0';
 
 /**
  * Gear settings: auto humidity + timers + language.
@@ -48,7 +48,15 @@ export function renderSettingsPanel(card, config) {
         : '--',
   };
 
-  const missing = !entities.delta || !entities.min || !entities.max;
+  const roomId = resolved.room_humidity_entity || cfg.room_humidity_entity || '';
+  const statusId = resolved.status_entity || '';
+  const statusAttrs = statusId && hass.states[statusId] ? hass.states[statusId].attributes : {};
+  const autoAvailable =
+    statusAttrs.auto_available === true ||
+    (!!roomId && !!hass.states[roomId]) ||
+    (!!entities.delta && !!hass.states[entities.delta]);
+
+  const missing = autoAvailable && (!entities.delta || !entities.min || !entities.max);
 
   const setNumber = async (entityId, value) => {
     if (!entityId || !hass) {
@@ -399,6 +407,8 @@ export function renderSettingsPanel(card, config) {
               </div>`
             : html``}
 
+          ${autoAvailable
+            ? html`
           <div class="sp-panel">
             <button class="sp-head" type="button" @click=${() => toggleSection('auto')}>
               <span class="sp-head-label">${tt('auto_humidity')}</span>
@@ -421,6 +431,8 @@ export function renderSettingsPanel(card, config) {
                 `
               : html``}
           </div>
+            `
+            : html``}
 
           <div class="sp-panel">
             <button class="sp-head" type="button" @click=${() => toggleSection('manual')}>

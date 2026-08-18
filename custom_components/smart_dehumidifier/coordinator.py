@@ -21,7 +21,9 @@ from .const import (
     ATTR_MIN_RH,
     ATTR_MODE,
     ATTR_PAUSE_ACTIVE,
+    ATTR_LABEL,
     ATTR_ROOM_HUMIDITY,
+    AUTO_MODE_KEYS,
     CONF_BATHROOM_HUMIDITY,
     CONF_FAN,
     CONF_HUMIDIFIER,
@@ -121,7 +123,8 @@ class SmartDehumidifierCoordinator:
             )
 
     async def _async_after_start(self) -> None:
-        """Initial fan sync after entities are ready."""
+        """Initial fan sync and entity visibility after entities are ready."""
+        await self.async_sync_auto_entity_visibility()
         await self.async_update_fan()
 
     async def async_unload(self) -> None:
@@ -140,6 +143,51 @@ class SmartDehumidifierCoordinator:
         if ent and hasattr(ent, "entity_id"):
             return ent.entity_id
         return None
+
+    @property
+    def auto_mode_available(self) -> bool:
+        """Auto mode requires an adjacent-room humidity sensor in config."""
+        return bool(self.room_humidity_entity)
+
+    async def async_sync_auto_entity_visibility(self) -> None:
+        """Enable/disable auto-related entities on the device page.
+
+        When no room humidity sensor is configured, hide Auto / Delta /
+        Min / Max / Recommended. When the sensor is present, re-enable them
+        if they were disabled by this integration.
+        """
+        from homeassistant.helpers import entity_registry as er
+
+        registry = er.async_get(self.hass)
+        available = self.auto_mode_available
+
+        for key in AUTO_MODE_KEYS:
+            ent = self.entities.get(key)
+            entity_id = getattr(ent, "entity_id", None) if ent else None
+            if not entity_id:
+                continue
+            reg_entry = registry.async_get(entity_id)
+            if reg_entry is None:
+                continue
+
+            if available:
+                if reg_entry.disabled_by == er.RegistryEntryDisabler.INTEGRATION:
+                    registry.async_update_entity(entity_id, disabled_by=None)
+                    _LOGGER.debug("Enabled auto entity %s", entity_id)
+            else:
+                if reg_entry.disabled_by is None:
+                    registry.async_update_entity(
+                        entity_id,
+                        disabled_by=er.RegistryEntryDisabler.INTEGRATION,
+                    )
+                    _LOGGER.debug("Disabled auto entity %s", entity_id)
+
+        # Force auto off when mode is unavailable
+        if not available:
+            auto = self.entities.get(KEY_AUTO)
+            if auto is not None and getattr(auto, "is_on", False):
+                if hasattr(auto, "async_turn_off"):
+                    await auto.async_turn_off()
 
     # ------------------------------------------------------------------
     # State helpers
@@ -165,7 +213,9 @@ class SmartDehumidifierCoordinator:
             return default
 
     def is_auto_on(self) -> bool:
-        """Public: whether auto mode switch is on."""
+        """Public: whether auto mode is available and switch is on."""
+        if not self.auto_mode_available:
+            return False
         ent_id = self.get_entity_id(KEY_AUTO)
         if not ent_id:
             return False
@@ -367,12 +417,11 @@ class SmartDehumidifierCoordinator:
     # ------------------------------------------------------------------
 
     def compute_recommended_humidity(self) -> int:
-        """Bathroom dehumidifier oriented by adjacent room RH.
+        """Recommended target only when auto mode is available.
 
-        target = room_rh + delta, clamped to [min_rh, max_rh].
-        Fallback when room sensor missing:
-          - bathroom present → min(bathroom, midpoint)
-          - nothing → midpoint of min/max
+        Auto: target = room_rh + delta, clamped to [min_rh, max_rh].
+        Without room sensor auto is unavailable — returns humidifier target
+        or a neutral midpoint (UI should not rely on this).
         """
         min_rh = self._get_number(KEY_MIN_RH, DEFAULT_MIN_RH)
         max_rh = self._get_number(KEY_MAX_RH, DEFAULT_MAX_RH)
@@ -381,14 +430,23 @@ class SmartDehumidifierCoordinator:
         if max_rh < min_rh:
             min_rh, max_rh = max_rh, min_rh
 
-        room = self._read_humidity(self.room_humidity_entity)
-        bath = self._read_humidity(self.bathroom_humidity_entity)
+        if not self.auto_mode_available:
+            # Local mode: no auto target calculation
+            state = self.hass.states.get(self.humidifier_entity)
+            if state is not None:
+                try:
+                    th = state.attributes.get("target_humidity")
+                    if th is not None:
+                        return int(round(float(th)))
+                except (TypeError, ValueError):
+                    pass
+            return int(round((min_rh + max_rh) / 2))
 
+        room = self._read_humidity(self.room_humidity_entity)
         if room is not None:
             target = room + delta
-        elif bath is not None:
-            target = min(bath, (min_rh + max_rh) / 2)
         else:
+            # Sensor configured but unavailable — hold midpoint until data returns
             target = (min_rh + max_rh) / 2
 
         return int(round(max(min_rh, min(max_rh, target))))
@@ -400,11 +458,8 @@ class SmartDehumidifierCoordinator:
             ATTR_DELTA: self._get_number(KEY_DELTA, DEFAULT_DELTA),
             ATTR_MIN_RH: self._get_number(KEY_MIN_RH, DEFAULT_MIN_RH),
             ATTR_MAX_RH: self._get_number(KEY_MAX_RH, DEFAULT_MAX_RH),
-            ATTR_MODE: (
-                "room+delta"
-                if self.room_humidity_entity
-                else ("bathroom" if self.bathroom_humidity_entity else "minmax")
-            ),
+            ATTR_MODE: "room+delta" if self.auto_mode_available else "local",
+            "auto_available": self.auto_mode_available,
         }
 
     def get_status(self) -> str:
@@ -426,6 +481,7 @@ class SmartDehumidifierCoordinator:
             ATTR_LABEL: self.get_status_label(),
             ATTR_MANUAL_ACTIVE: self._manual_active,
             ATTR_PAUSE_ACTIVE: self._pause_active,
+            "auto_available": self.auto_mode_available,
         }
 
     # ------------------------------------------------------------------

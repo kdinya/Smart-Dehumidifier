@@ -10,6 +10,7 @@ from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
+    AUTO_MODE_KEYS,
     DEFAULT_DELTA,
     DEFAULT_MANUAL_RUNTIME,
     DEFAULT_MAX_RH,
@@ -73,7 +74,6 @@ class SmartDehumidifierNumber(RestoreNumber, NumberEntity):
     """Configurable number with state restore across restarts."""
 
     _attr_entity_category = EntityCategory.CONFIG
-    _attr_entity_registry_enabled_default = True
     _attr_has_entity_name = True
     _attr_mode = NumberMode.SLIDER
     _attr_should_poll = False
@@ -99,6 +99,11 @@ class SmartDehumidifierNumber(RestoreNumber, NumberEntity):
         self._attr_native_unit_of_measurement = unit
         self._attr_native_value = default
         self._default = default
+        # Auto-related numbers hidden without room humidity sensor
+        if key in AUTO_MODE_KEYS:
+            self._attr_entity_registry_enabled_default = coordinator.auto_mode_available
+        else:
+            self._attr_entity_registry_enabled_default = True
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)},
             name=coordinator.name,
@@ -112,11 +117,18 @@ class SmartDehumidifierNumber(RestoreNumber, NumberEntity):
         if last and last.native_value is not None:
             self._attr_native_value = last.native_value
 
+    @property
+    def available(self) -> bool:
+        if self.key in AUTO_MODE_KEYS:
+            return self.coordinator.auto_mode_available
+        return True
+
     async def async_set_native_value(self, value: float) -> None:
         self._attr_native_value = value
         self.async_write_ha_state()
-        # Delta / min / max → recalculate recommended and push if auto
         if self.key in (KEY_MIN_RH, KEY_MAX_RH, KEY_DELTA):
+            if not self.coordinator.auto_mode_available:
+                return
             rec = self.coordinator.entities.get(KEY_RECOMMENDED)
             if rec and hasattr(rec, "async_write_ha_state"):
                 rec.async_write_ha_state()
