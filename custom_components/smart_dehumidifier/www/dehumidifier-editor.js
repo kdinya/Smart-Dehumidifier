@@ -1,8 +1,20 @@
-import { html, css, LitElement } from './files/lit-proxy.js?v=1.6.3';
-import { EDITOR_SCHEMA, ENTITY_FIELDS } from './visual-editor-config.js?v=1.6.3';
+import { html, css, LitElement } from './files/lit-proxy.js?v=1.6.4';
+import { EDITOR_SCHEMA, ENTITY_FIELDS } from './visual-editor-config.js?v=1.6.4';
+import { t, getLang } from './i18n.js?v=1.6.4';
 
 const STORAGE_KEY = 'dh-editor-open-sections-v6';
-const EDITOR_VERSION = '1.4.0';
+const SECTION_I18N = {
+  entities: 'ed_entities',
+  auto_humidity: 'ed_auto_humidity',
+  layout: 'ed_layout',
+  arc: 'ed_arc',
+  humidity: 'ed_humidity',
+  target: 'ed_target',
+  buttons: 'ed_buttons',
+  effects: 'ed_effects',
+};
+
+const EDITOR_VERSION = '1.5.0';
 
 function fireEvent(node, type, detail = {}, options = {}) {
   const event = new CustomEvent(type, {
@@ -424,7 +436,11 @@ class DehumidifierEditor extends LitElement {
           ${this._renderReset(field)}
         </div>
         <select class="select-input" .value=${value} @change=${(e) => this._setValue(field, e.target.value)}>
-          ${(field.options || []).map((o) => html`<option value=${o.value}>${o.label}</option>`)}
+          ${(field.options || []).map((o) => {
+            const labelKey = o.value === 'left' ? 'align_left' : o.value === 'right' ? 'align_right' : o.value === 'center' ? 'align_center' : null;
+            const label = labelKey ? this._tt(labelKey) : o.label;
+            return html`<option value=${o.value}>${label}</option>`;
+          })}
         </select>
       </div>
     `;
@@ -593,7 +609,7 @@ class DehumidifierEditor extends LitElement {
             style="width:100%;border:0;cursor:pointer;text-align:left;font:inherit;color:inherit;"
             @click=${() => this._toggleSection('entities')}
           >
-            <span style="flex:1">🔌 Сутності (Entities)</span>
+            <span style="flex:1">🔌 ${this._tt('ed_entities')}</span>
             <span class="section-arrow ${this._openSections.entities ? 'open' : ''}">▼</span>
           </button>
           ${this._openSections.entities
@@ -616,7 +632,7 @@ class DehumidifierEditor extends LitElement {
             <div class="section">
               <button class="section-head" type="button" @click=${() => this._toggleSection(section.id)}>
                 <span class="section-emoji">${section.em}</span>
-                <span class="section-title">${section.title}</span>
+                <span class="section-title">${this._sectionTitle(section)}</span>
                 <span class="section-arrow ${isOpen ? 'open' : ''}">▼</span>
               </button>
               ${isOpen

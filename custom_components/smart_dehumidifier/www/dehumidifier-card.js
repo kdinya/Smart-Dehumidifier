@@ -1,18 +1,18 @@
-import { html, css, LitElement, unsafeCSS } from './files/lit-proxy.js?v=1.6.3';
+import { html, css, LitElement, unsafeCSS } from './files/lit-proxy.js?v=1.6.4';
 
-import { renderArcSlider } from './components/arc-slider.js?v=1.6.3';
-import { renderCurrentHumidity } from './components/current-humidity.js?v=1.6.3';
-import { renderHumidityPanel } from './components/humidity-panel.js?v=1.6.3';
-import { renderBottomControls } from './components/bottom-controls.js?v=1.6.3';
-import { renderVisualEffects } from './components/visual-effects.js?v=1.6.3';
-import { renderSettingsPanel } from './components/settings-panel.js?v=1.6.3';
+import { renderArcSlider } from './components/arc-slider.js?v=1.6.4';
+import { renderCurrentHumidity } from './components/current-humidity.js?v=1.6.4';
+import { renderHumidityPanel } from './components/humidity-panel.js?v=1.6.4';
+import { renderBottomControls } from './components/bottom-controls.js?v=1.6.4';
+import { renderVisualEffects } from './components/visual-effects.js?v=1.6.4';
+import { renderSettingsPanel } from './components/settings-panel.js?v=1.6.4';
 
 import {
   toFiniteNumber,
   toPositiveNumber,
   formatElapsedSince,
   resolveSdEntities,
-} from './dh-utils.js?v=1.6.3';
+} from './dh-utils.js?v=1.6.4';
 
 const DEFAULT_BORDER_RADIUS = 28;
 const DEFAULT_HEIGHT_PERCENT = 100;
@@ -73,8 +73,7 @@ class MyDehumidifierCard extends LitElement {
 
   static styles = css`
     :host {
-      display: flex;
-      justify-content: center;
+      display: block;
       width: 100%;
       container-type: inline-size;
     }
@@ -88,7 +87,7 @@ class MyDehumidifierCard extends LitElement {
       padding: 0;
       margin: 0;
       width: 100%;
-      max-width: var(--dh-glass-max-width, 1000px);
+      max-width: none;
       aspect-ratio: var(--dh-glass-ar-mobile, 1);
       box-sizing: border-box;
       border-radius: var(--dh-card-radius, 28px);
@@ -185,11 +184,14 @@ class MyDehumidifierCard extends LitElement {
 
     .dh-frame {
       width: min(100cqi, calc(100cqb * var(--dh-frame-ar-num, 1)), var(--dh-frame-max-width, 400px));
+      max-width: min(100%, var(--dh-glass-max-width, 1000px));
       aspect-ratio: var(--dh-frame-ar, 1);
       container-type: inline-size;
       position: relative;
       z-index: 1;
       flex: 0 0 auto;
+      margin-left: var(--dh-frame-ml, 0);
+      margin-right: var(--dh-frame-mr, 0);
     }
 
     .dh-scene {
@@ -498,6 +500,8 @@ class MyDehumidifierCard extends LitElement {
       glassRatio: String(glassRatio),
       alignClass: `align-${align}`,
       justifyContent,
+      frameMl: align === 'right' ? 'auto' : '0',
+      frameMr: align === 'left' ? 'auto' : (align === 'center' ? 'auto' : '0'),
       padTop: `${toFiniteNumber(config.content_padding_top, 40)}px`,
       padBottom: `${toFiniteNumber(config.content_padding_bottom, 16)}px`,
       padLeft: `${toFiniteNumber(config.content_padding_left, 14)}px`,
@@ -558,6 +562,8 @@ class MyDehumidifierCard extends LitElement {
       --dh-pad-right: ${layout.padRight};
       --dh-offset-x: ${layout.offsetX};
       --dh-offset-y: ${layout.offsetY};
+      --dh-frame-ml: ${layout.frameMl};
+      --dh-frame-mr: ${layout.frameMr};
     `;
 
     return html`

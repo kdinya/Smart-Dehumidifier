@@ -1,10 +1,10 @@
-import { html } from '../files/lit-proxy.js?v=1.6.3';
-import { t } from '../i18n.js?v=1.6.3';
-import { resolveSdEntities } from '../dh-utils.js?v=1.6.3';
+import { html } from '../files/lit-proxy.js?v=1.6.4';
+import { t } from '../i18n.js?v=1.6.4';
+import { resolveSdEntities, sdLog } from '../dh-utils.js?v=1.6.4';
 
 /**
- * Gear settings: automatic humidity + timers + language.
- * Scrollable modal; sections collapsed by default.
+ * Gear settings: auto humidity + timers + language.
+ * Values adjusted only with + / − (no range sliders).
  */
 export function renderSettingsPanel(card, config) {
   if (!card._isSettingsOpen) return html``;
@@ -34,6 +34,8 @@ export function renderSettingsPanel(card, config) {
     pause: resolved.manual_pause_runtime_entity || '',
   };
 
+  sdLog('debug', 'gear entities', entities);
+
   const vals = {
     delta: getVal(entities.delta, 3),
     min: getVal(entities.min, 45),
@@ -50,99 +52,35 @@ export function renderSettingsPanel(card, config) {
 
   const setNumber = async (entityId, value) => {
     if (!entityId || !hass) {
-      console.warn(
-        '[Smart Dehumidifier] No entity for slider — open the Smart Dehumidifier device page once so entities exist'
-      );
+      sdLog('warn', 'setNumber: missing entity', entityId);
       return;
     }
     const domain = String(entityId).split('.')[0];
     const svc = domain === 'number' ? 'number' : 'input_number';
+    const num = Number(value);
     try {
       await hass.callService(svc, 'set_value', {
         entity_id: entityId,
-        value: Number(value),
+        value: num,
       });
+      sdLog('info', 'set_value ok', entityId, num);
     } catch (err) {
-      console.error('[Smart Dehumidifier] set_value failed', entityId, err);
+      sdLog('error', 'set_value failed', entityId, err);
     }
   };
 
-  const updateLabel = (input, value) => {
-    const row = input.closest('.sp-row');
-    const label = row && row.querySelector('.sp-val');
-    if (label) {
-      const unit = input.dataset.unit || '';
-      label.textContent = `${value}${unit}`;
-    }
+  const clampStep = (value, min, max, step) => {
+    const s = Number(step) || 1;
+    let v = Math.round(Number(value) / s) * s;
+    v = Math.min(max, Math.max(min, v));
+    const decimals = (String(s).split('.')[1] || '').length;
+    return Number(v.toFixed(decimals));
   };
 
-  const valueFromPointer = (input, clientX) => {
-    const min = Number(input.min);
-    const max = Number(input.max);
-    const step = Number(input.step) || 1;
-    const rect = input.getBoundingClientRect();
-    if (rect.width <= 0) return Number(input.value);
-    let ratio = (clientX - rect.left) / rect.width;
-    ratio = Math.min(1, Math.max(0, ratio));
-    let raw = min + ratio * (max - min);
-    const stepped = Math.round(raw / step) * step;
-    const decimals = (String(step).split('.')[1] || '').length;
-    return Number(stepped.toFixed(decimals));
-  };
-
-  // Axis lock: only change value on horizontal drag — vertical scroll ignores slider
-  const onSliderPointerDown = (entityId) => (e) => {
-    const input = e.currentTarget;
-    if (input.disabled) return;
-    input._sdGesture = {
-      startX: e.clientX,
-      startY: e.clientY,
-      axis: null,
-      entityId,
-      moved: false,
-    };
-    try {
-      input.setPointerCapture(e.pointerId);
-    } catch (_err) {}
-    // Prevent immediate seek-to-tap which jumps value while scrolling
-    e.preventDefault();
-  };
-
-  const onSliderPointerMove = (e) => {
-    const input = e.currentTarget;
-    const g = input._sdGesture;
-    if (!g) return;
-    const dx = Math.abs(e.clientX - g.startX);
-    const dy = Math.abs(e.clientY - g.startY);
-    if (!g.axis) {
-      if (dx < 8 && dy < 8) return;
-      g.axis = dx >= dy ? 'x' : 'y';
-    }
-    if (g.axis === 'y') return;
-    g.moved = true;
-    const v = valueFromPointer(input, e.clientX);
-    input.value = String(v);
-    updateLabel(input, v);
-    e.preventDefault();
-  };
-
-  const onSliderPointerUp = (e) => {
-    const input = e.currentTarget;
-    const g = input._sdGesture;
-    if (!g) return;
-    if (g.axis === 'x' && g.moved) {
-      setNumber(g.entityId, input.value);
-    }
-    input._sdGesture = null;
-    try {
-      input.releasePointerCapture(e.pointerId);
-    } catch (_err) {}
-  };
-
-  // Keyboard / accessibility still works via native change
-  const onCommit = (entityId) => (e) => {
-    setNumber(entityId, e.target.value);
-    updateLabel(e.target, e.target.value);
+  const bump = (entityId, current, min, max, step, dir) => {
+    if (!entityId) return;
+    const next = clampStep(Number(current) + dir * step, min, max, step);
+    setNumber(entityId, next);
   };
 
   const setLanguage = (lang) => {
@@ -151,6 +89,7 @@ export function renderSettingsPanel(card, config) {
     try {
       localStorage.setItem('sd_card_lang', lang);
     } catch (_e) {}
+    sdLog('info', 'language set', lang);
     card.dispatchEvent(
       new CustomEvent('config-changed', {
         detail: { config: next },
@@ -187,27 +126,30 @@ export function renderSettingsPanel(card, config) {
 
   const tt = (key) => t(hass, key, { ...cfg, language: currentLang });
 
-  const sliderRow = (label, entityId, value, min, max, step, unit) => html`
+  const stepRow = (label, entityId, value, min, max, step, unit) => html`
     <div class="sp-row">
       <div class="sp-label-line">
         <span class="sp-label">${label}</span>
-        <span class="sp-val">${value}${unit}</span>
       </div>
-      <input
-        class="sp-slider"
-        type="range"
-        min=${min}
-        max=${max}
-        step=${step}
-        .value=${String(value)}
-        data-unit=${unit}
-        ?disabled=${!entityId}
-        @pointerdown=${onSliderPointerDown(entityId)}
-        @pointermove=${onSliderPointerMove}
-        @pointerup=${onSliderPointerUp}
-        @pointercancel=${onSliderPointerUp}
-        @change=${onCommit(entityId)}
-      />
+      <div class="sp-stepper">
+        <button
+          type="button"
+          class="sp-step-btn"
+          ?disabled=${!entityId || value <= min}
+          @click=${() => bump(entityId, value, min, max, step, -1)}
+        >
+          −
+        </button>
+        <span class="sp-step-val">${value}${unit}</span>
+        <button
+          type="button"
+          class="sp-step-btn"
+          ?disabled=${!entityId || value >= max}
+          @click=${() => bump(entityId, value, min, max, step, 1)}
+        >
+          +
+        </button>
+      </div>
       ${!entityId ? html`<div class="sp-warn">—</div>` : html``}
     </div>
   `;
@@ -353,7 +295,7 @@ export function renderSettingsPanel(card, config) {
       .sp-row {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 8px;
       }
       .sp-label-line {
         display: flex;
@@ -367,52 +309,39 @@ export function renderSettingsPanel(card, config) {
         text-transform: uppercase;
         color: rgba(255, 255, 255, 0.35);
       }
-      .sp-val {
-        font-size: 14px;
-        font-weight: 700;
-        color: rgba(255, 255, 255, 0.9);
+      .sp-stepper {
+        display: grid;
+        grid-template-columns: 44px 1fr 44px;
+        align-items: center;
+        gap: 10px;
       }
-      .sp-slider {
-        width: 100%;
-        height: 28px;
-        margin: 0;
-        -webkit-appearance: none;
-        appearance: none;
-        background: transparent;
+      .sp-step-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.06);
+        color: #fff;
+        font-size: 22px;
+        font-weight: 600;
+        line-height: 1;
         cursor: pointer;
-        touch-action: none;
-        user-select: none;
+        touch-action: manipulation;
       }
-      .sp-slider:disabled {
+      .sp-step-btn:disabled {
         opacity: 0.35;
         cursor: not-allowed;
       }
-      .sp-slider::-webkit-slider-runnable-track {
-        height: 4px;
-        border-radius: 2px;
-        background: rgba(255, 255, 255, 0.12);
+      .sp-step-btn:not(:disabled):active {
+        background: rgba(0, 212, 255, 0.2);
+        border-color: rgba(0, 212, 255, 0.45);
       }
-      .sp-slider::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        width: 18px;
-        height: 18px;
-        margin-top: -7px;
-        border-radius: 50%;
-        background: #00d4ff;
-        box-shadow: 0 0 10px rgba(0, 212, 255, 0.55);
-        border: 2px solid #0a1018;
-      }
-      .sp-slider::-moz-range-track {
-        height: 4px;
-        border-radius: 2px;
-        background: rgba(255, 255, 255, 0.12);
-      }
-      .sp-slider::-moz-range-thumb {
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        background: #00d4ff;
-        border: 2px solid #0a1018;
+      .sp-step-val {
+        text-align: center;
+        font-size: 18px;
+        font-weight: 800;
+        color: rgba(255, 255, 255, 0.95);
+        font-variant-numeric: tabular-nums;
       }
       .sp-warn {
         font-size: 10px;
@@ -438,6 +367,12 @@ export function renderSettingsPanel(card, config) {
         border-color: rgba(0, 212, 255, 0.55);
         background: rgba(0, 212, 255, 0.14);
       }
+      .sp-log-hint {
+        font-size: 9px;
+        color: rgba(255, 255, 255, 0.28);
+        text-align: center;
+        padding: 4px 8px 2px;
+      }
     </style>
 
     <div
@@ -462,8 +397,7 @@ export function renderSettingsPanel(card, config) {
         <div class="sp-scroll" @touchmove=${stopScrollBubble}>
           ${missing
             ? html`<div class="sp-warn">
-                Не знайдено entity інтеграції Smart Dehumidifier. Додай інтеграцію і
-                вкажи humidifier у картці.
+                ${tt('entities_missing')}
               </div>`
             : html``}
 
@@ -482,9 +416,9 @@ export function renderSettingsPanel(card, config) {
                       </div>
                       <div class="sp-hud-val">${vals.recommended}%</div>
                     </div>
-                    ${sliderRow(tt('delta'), entities.delta, vals.delta, 0, 20, 0.5, '%')}
-                    ${sliderRow(tt('min_rh'), entities.min, vals.min, 20, 90, 1, '%')}
-                    ${sliderRow(tt('max_rh'), entities.max, vals.max, 30, 99, 1, '%')}
+                    ${stepRow(tt('delta'), entities.delta, vals.delta, 0, 20, 0.5, '%')}
+                    ${stepRow(tt('min_rh'), entities.min, vals.min, 20, 90, 1, '%')}
+                    ${stepRow(tt('max_rh'), entities.max, vals.max, 30, 99, 1, '%')}
                   </div>
                 `
               : html``}
@@ -500,7 +434,7 @@ export function renderSettingsPanel(card, config) {
             ${card._openSections.manual
               ? html`
                   <div class="sp-body">
-                    ${sliderRow(
+                    ${stepRow(
                       tt('runtime'),
                       entities.runtime,
                       vals.runtime,
@@ -509,7 +443,7 @@ export function renderSettingsPanel(card, config) {
                       1,
                       ` ${tt('min')}`
                     )}
-                    ${sliderRow(
+                    ${stepRow(
                       tt('pause_time'),
                       entities.pause,
                       vals.pause,
@@ -548,6 +482,8 @@ export function renderSettingsPanel(card, config) {
                 `
               : html``}
           </div>
+
+          <div class="sp-log-hint">logs: window.__SD_LOGS__</div>
         </div>
       </div>
     </div>

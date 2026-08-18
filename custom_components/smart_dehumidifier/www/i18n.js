@@ -24,6 +24,19 @@ const STRINGS = {
     room_hint: 'Авто: кімната + дельта',
     bath_hint: 'Авто: лише ванна',
     beta: 'Бета — ще налаштовується',
+    entities_missing:
+      'Не знайдено entity інтеграції. Перевір Smart Dehumidifier на сторінці пристрою.',
+    ed_entities: 'Сутності',
+    ed_auto_humidity: 'Автоматична вологість (дизайн)',
+    ed_layout: 'Розкладка',
+    ed_arc: 'Дуга та повзунок',
+    ed_humidity: 'Поточна вологість',
+    ed_target: 'Панель цільової вологості',
+    ed_buttons: 'Нижні кнопки',
+    ed_effects: 'Візуальні ефекти',
+    align_left: 'Ліворуч',
+    align_center: 'По центру',
+    align_right: 'Праворуч',
   },
   ru: {
     auto: 'Авто',
@@ -50,6 +63,19 @@ const STRINGS = {
     room_hint: 'Авто: комната + дельта',
     bath_hint: 'Авто: только ванная',
     beta: 'Бета — ещё настраивается',
+    entities_missing:
+      'Не найдены entity интеграции. Проверьте Smart Dehumidifier на странице устройства.',
+    ed_entities: 'Сущности',
+    ed_auto_humidity: 'Автоматическая влажность (дизайн)',
+    ed_layout: 'Раскладка',
+    ed_arc: 'Дуга и ползунок',
+    ed_humidity: 'Текущая влажность',
+    ed_target: 'Панель целевой влажности',
+    ed_buttons: 'Нижние кнопки',
+    ed_effects: 'Визуальные эффекты',
+    align_left: 'Слева',
+    align_center: 'По центру',
+    align_right: 'Справа',
   },
   en: {
     auto: 'Auto',
@@ -76,12 +102,29 @@ const STRINGS = {
     room_hint: 'Auto: room + delta',
     bath_hint: 'Auto: bathroom only',
     beta: 'Beta — still being tuned',
+    entities_missing:
+      'Integration entities not found. Check Smart Dehumidifier on the device page.',
+    ed_entities: 'Entities',
+    ed_auto_humidity: 'Automatic humidity (design)',
+    ed_layout: 'Layout',
+    ed_arc: 'Arc & slider',
+    ed_humidity: 'Current humidity',
+    ed_target: 'Target humidity panel',
+    ed_buttons: 'Bottom buttons',
+    ed_effects: 'Visual effects',
+    align_left: 'Left',
+    align_center: 'Center',
+    align_right: 'Right',
   },
 };
 
 export function getLang(hass, config) {
   const forced = (config && (config.language || config.lang)) || null;
   if (forced && STRINGS[forced]) return forced;
+  try {
+    const stored = localStorage.getItem('sd_card_lang');
+    if (stored && STRINGS[stored]) return stored;
+  } catch (_e) {}
   const raw =
     hass?.locale?.language ||
     hass?.language ||
