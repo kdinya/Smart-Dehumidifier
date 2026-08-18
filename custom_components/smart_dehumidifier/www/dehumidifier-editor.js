@@ -1,8 +1,8 @@
-import { html, css, LitElement } from './files/lit-proxy.js?v=1.6.2';
-import { EDITOR_SCHEMA, ENTITY_FIELDS } from './visual-editor-config.js?v=1.6.2';
+import { html, css, LitElement } from './files/lit-proxy.js?v=1.6.3';
+import { EDITOR_SCHEMA, ENTITY_FIELDS } from './visual-editor-config.js?v=1.6.3';
 
 const STORAGE_KEY = 'dh-editor-open-sections-v6';
-const EDITOR_VERSION = '1.3.0';
+const EDITOR_VERSION = '1.4.0';
 
 function fireEvent(node, type, detail = {}, options = {}) {
   const event = new CustomEvent(type, {
@@ -450,6 +450,57 @@ class DehumidifierEditor extends LitElement {
     `;
   }
 
+  _rangeValueFromPointer(input, clientX, min, max, step) {
+    const rect = input.getBoundingClientRect();
+    if (rect.width <= 0) return Number(input.value);
+    let ratio = (clientX - rect.left) / rect.width;
+    ratio = Math.min(1, Math.max(0, ratio));
+    let raw = min + ratio * (max - min);
+    const stepped = Math.round(raw / step) * step;
+    return clamp(stepped, min, max);
+  }
+
+  _onRangePointerDown(e) {
+    const input = e.currentTarget;
+    input._sdGesture = {
+      startX: e.clientX,
+      startY: e.clientY,
+      axis: null,
+      moved: false,
+    };
+    try {
+      input.setPointerCapture(e.pointerId);
+    } catch (_err) {}
+    e.preventDefault();
+  }
+
+  _onRangePointerMove(field, min, max, step) {
+    return (e) => {
+      const input = e.currentTarget;
+      const g = input._sdGesture;
+      if (!g) return;
+      const dx = Math.abs(e.clientX - g.startX);
+      const dy = Math.abs(e.clientY - g.startY);
+      if (!g.axis) {
+        if (dx < 8 && dy < 8) return;
+        g.axis = dx >= dy ? 'x' : 'y';
+      }
+      if (g.axis === 'y') return;
+      g.moved = true;
+      const v = this._rangeValueFromPointer(input, e.clientX, min, max, step);
+      input.value = String(v);
+      this._setValue(field, v);
+      e.preventDefault();
+    };
+  }
+
+  _onRangePointerUp(e) {
+    e.currentTarget._sdGesture = null;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch (_err) {}
+  }
+
   _renderNumber(field) {
     const min = field.min ?? 0;
     const max = field.max ?? 100;
@@ -470,7 +521,11 @@ class DehumidifierEditor extends LitElement {
             max=${max}
             step=${step}
             .value=${String(value)}
-            @input=${(e) => this._setValue(field, e.target.value)}
+            style="touch-action: none;"
+            @pointerdown=${(e) => this._onRangePointerDown(e)}
+            @pointermove=${this._onRangePointerMove(field, min, max, step)}
+            @pointerup=${(e) => this._onRangePointerUp(e)}
+            @pointercancel=${(e) => this._onRangePointerUp(e)}
           />
           <button class="num-btn" type="button" @click=${() => this._changeByStep(field, 1)}>+</button>
           <div class="num-value">${formatValue(value, step)}</div>
@@ -503,15 +558,16 @@ class DehumidifierEditor extends LitElement {
                 @value-changed=${(e) => this._setValue(field, e.detail?.value ?? '')}
               ></ha-entity-picker>
             `
-          : html``}
-        <input
-          class="text-input"
-          type="text"
-          placeholder=${domain ? `${domain}.my_entity` : 'domain.entity_id'}
-          .value=${value}
-          @change=${(e) => this._setValue(field, e.target.value)}
-          @blur=${(e) => this._setValue(field, e.target.value)}
-        />
+          : html`
+              <input
+                class="text-input"
+                type="text"
+                placeholder=${domain ? `${domain}.my_entity` : 'domain.entity_id'}
+                .value=${value}
+                @change=${(e) => this._setValue(field, e.target.value)}
+                @blur=${(e) => this._setValue(field, e.target.value)}
+              />
+            `}
       </div>
     `;
   }

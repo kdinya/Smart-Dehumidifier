@@ -89,26 +89,38 @@ export function formatElapsedSince(lastChanged, now = Date.now()) {
 
 /**
  * Auto-bind Smart Dehumidifier integration entities.
- * Numbers/status/auto/button are created by the integration — no card editor pickers needed.
+ * Helper numbers/sensors/switches always prefer discovery from the same device
+ * as the main humidifier — no manual card editor wiring needed.
  */
 export function resolveSdEntities(hass, config = {}) {
   const out = {
     entity: config.entity || '',
     fan_entity: config.fan_entity || '',
-    status_entity: config.status_entity || '',
-    auto_entity: config.auto_entity || '',
-    calc_entity: config.calc_entity || '',
     current_humidity_entity: config.current_humidity_entity || '',
     room_humidity_entity: config.room_humidity_entity || '',
-    manual_script_entity: config.manual_script_entity || '',
-    delta_entity: config.delta_entity || '',
-    min_rh_entity: config.min_rh_entity || '',
-    max_rh_entity: config.max_rh_entity || '',
-    manual_runtime_entity: config.manual_runtime_entity || '',
-    manual_pause_runtime_entity: config.manual_pause_runtime_entity || '',
+    // helpers filled by discovery (config only as weak fallback)
+    status_entity: '',
+    auto_entity: '',
+    calc_entity: '',
+    manual_script_entity: '',
+    delta_entity: '',
+    min_rh_entity: '',
+    max_rh_entity: '',
+    manual_runtime_entity: '',
+    manual_pause_runtime_entity: '',
   };
 
-  if (!hass) return out;
+  if (!hass) {
+    // no hass yet — keep any explicit config helpers
+    for (const k of [
+      'status_entity', 'auto_entity', 'calc_entity', 'manual_script_entity',
+      'delta_entity', 'min_rh_entity', 'max_rh_entity',
+      'manual_runtime_entity', 'manual_pause_runtime_entity',
+    ]) {
+      if (config[k]) out[k] = config[k];
+    }
+    return out;
+  }
 
   const registry = hass.entities || {};
   const main = out.entity;
@@ -127,41 +139,39 @@ export function resolveSdEntities(hass, config = {}) {
     ['_manual_toggle', 'manual_script_entity'],
   ];
 
-  const consider = (entityId, info = {}) => {
+  const found = {};
+
+  const consider = (entityId, info = {}, force = false) => {
     const uid = String(info.unique_id || '');
     const platform = String(info.platform || '');
+    const sameDevice = deviceId && info.device_id === deviceId;
     const isOurs =
       platform === 'smart_dehumidifier' ||
       uid.includes('smart_dehumidifier') ||
-      (deviceId && info.device_id === deviceId && (
-        entityId.startsWith('number.') ||
-        entityId.startsWith('sensor.') ||
-        entityId.startsWith('switch.') ||
-        entityId.startsWith('button.')
-      ));
+      sameDevice;
 
-    // Prefer platform match; also accept unique_id suffixes from our integration
+    if (!isOurs && !force) return;
+
     for (const [suffix, key] of suffixMap) {
-      if (out[key]) continue;
-      if (uid.endsWith(suffix) || uid.includes(suffix)) {
-        if (platform === 'smart_dehumidifier' || uid.includes('_') || (deviceId && info.device_id === deviceId)) {
-          out[key] = entityId;
-        }
+      if (found[key]) continue;
+      if (uid.endsWith(suffix) || (uid.includes(suffix) && platform === 'smart_dehumidifier')) {
+        found[key] = entityId;
+        continue;
       }
-    }
-
-    // entity_id fallback patterns
-    const id = entityId.toLowerCase();
-    for (const [suffix, key] of suffixMap) {
-      if (out[key]) continue;
-      const token = suffix.slice(1); // delta, min_rh, ...
-      if (id.includes(token) && (platform === 'smart_dehumidifier' || id.includes('smart_dehumidifier') || id.includes('dehumidifier'))) {
-        out[key] = entityId;
+      const id = entityId.toLowerCase();
+      const token = suffix.slice(1);
+      if (
+        id.includes(token) &&
+        (platform === 'smart_dehumidifier' ||
+          id.includes('smart_dehumidifier') ||
+          (sameDevice && (id.startsWith('number.') || id.startsWith('sensor.') || id.startsWith('switch.') || id.startsWith('button.'))))
+      ) {
+        found[key] = entityId;
       }
     }
   };
 
-  // 1) registry pass
+  // 1) same device + our platform from registry
   for (const [entityId, info] of Object.entries(registry)) {
     if (deviceId && info.device_id && info.device_id !== deviceId && info.platform !== 'smart_dehumidifier') {
       continue;
@@ -169,11 +179,13 @@ export function resolveSdEntities(hass, config = {}) {
     consider(entityId, info);
   }
 
-  // 2) states fallback if registry empty / incomplete
-  if (!out.delta_entity || !out.min_rh_entity) {
-    for (const entityId of Object.keys(hass.states || {})) {
-      consider(entityId, registry[entityId] || {});
-    }
+  // 2) states fallback
+  for (const entityId of Object.keys(hass.states || {})) {
+    consider(entityId, registry[entityId] || {}, true);
+  }
+
+  for (const [, key] of suffixMap) {
+    out[key] = found[key] || config[key] || '';
   }
 
   return out;

@@ -35,22 +35,22 @@ async def async_setup_entry(
 
     entities = [
         SmartDehumidifierNumber(
-            coordinator, KEY_DELTA, "Delta", DEFAULT_DELTA, 0.5, 15, 0.5, PERCENTAGE
+            coordinator, KEY_DELTA, "Delta", DEFAULT_DELTA, 0.0, 20.0, 0.5, PERCENTAGE
         ),
         SmartDehumidifierNumber(
-            coordinator, KEY_MIN_RH, "Auto Min RH", DEFAULT_MIN_RH, 30, 80, 1, PERCENTAGE
+            coordinator, KEY_MIN_RH, "Auto Min RH", DEFAULT_MIN_RH, 20.0, 90.0, 1.0, PERCENTAGE
         ),
         SmartDehumidifierNumber(
-            coordinator, KEY_MAX_RH, "Auto Max RH", DEFAULT_MAX_RH, 40, 95, 1, PERCENTAGE
+            coordinator, KEY_MAX_RH, "Auto Max RH", DEFAULT_MAX_RH, 30.0, 99.0, 1.0, PERCENTAGE
         ),
         SmartDehumidifierNumber(
             coordinator,
             KEY_MANUAL_RUNTIME,
             "Manual Runtime",
             DEFAULT_MANUAL_RUNTIME,
-            5,
-            180,
-            5,
+            1.0,
+            240.0,
+            1.0,
             UnitOfTime.MINUTES,
         ),
         SmartDehumidifierNumber(
@@ -58,9 +58,9 @@ async def async_setup_entry(
             KEY_PAUSE_RUNTIME,
             "Pause Runtime",
             DEFAULT_PAUSE_RUNTIME,
-            5,
-            180,
-            5,
+            1.0,
+            240.0,
+            1.0,
             UnitOfTime.MINUTES,
         ),
     ]

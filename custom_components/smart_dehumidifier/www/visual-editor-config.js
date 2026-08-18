@@ -24,16 +24,27 @@ export const ENTITY_FIELDS = [
 export const EDITOR_SCHEMA = [
   section('entities', '🔌', 'Сутності (Entities)', ENTITY_FIELDS),
 
-  section('auto_humidity', '🌡️', 'Автоматична вологість', [
-    ent('delta_entity', 'Delta — зсув від кімнати (number)', 'number'),
-    ent('min_rh_entity', 'Мін. цільова RH (number)', 'number'),
-    ent('max_rh_entity', 'Макс. цільова RH (number)', 'number'),
-    ent('calc_entity', 'Рекомендована вологість (sensor)', 'sensor'),
-    ent('auto_entity', 'Перемикач Auto (switch)', 'switch'),
-    ent('manual_runtime_entity', 'Тривалість ручного режиму (number)', 'number'),
-    ent('manual_pause_runtime_entity', 'Тривалість паузи (number)', 'number'),
-    ent('status_entity', 'Статус (sensor)', 'sensor'),
-    ent('manual_script_entity', 'Кнопка Manual Toggle (button)', 'button'),
+  section('auto_humidity', '🌡️', 'Автоматична вологість (дизайн)', [
+    tog('auto_ui_show', 'Показати панель Auto', true),
+    num('auto_ui_popup_x', 'Зміщення панелі по X', -200, 200, 0, 1),
+    num('auto_ui_popup_y', 'Зміщення панелі по Y', -100, 300, 92, 1),
+    num('auto_ui_popup_width', 'Ширина панелі', 80, 400, 164, 1),
+    num('auto_ui_popup_height', 'Висота панелі', 24, 120, 40, 1),
+    num('auto_ui_popup_radius', 'Заокруглення', 0, 40, 20, 1),
+    num('auto_ui_padding_x', 'Внутрішній відступ X', 0, 40, 14, 1),
+    num('auto_ui_gap', 'Відступ між елементами', 0, 30, 8, 1),
+    num('auto_ui_icon_size', 'Розмір іконки', 8, 48, 18, 1),
+    num('auto_ui_label_size', 'Розмір підпису', 8, 32, 13, 1),
+    num('auto_ui_value_size', 'Розмір значення %', 8, 40, 15, 1),
+    txt('auto_ui_color', 'Колір акценту', '#7fc8ff'),
+    txt('auto_ui_icon', 'Іконка (mdi:...)', 'mdi:water-percent'),
+    txt('auto_ui_label_text', 'Текст підпису (пусто = Auto)', ''),
+    num('auto_ui_arrow_x', 'Стрілка: зміщення X', -100, 100, 0, 1),
+    num('auto_ui_arrow_y', 'Стрілка: зміщення Y', -100, 100, 0, 1),
+    num('auto_ui_arrow_width', 'Стрілка: ширина', 8, 60, 20, 1),
+    num('auto_ui_arrow_height', 'Стрілка: висота', 6, 40, 12, 1),
+    num('auto_ui_arrow_icon_size', 'Стрілка: розмір іконки', 6, 32, 13, 1),
+    num('auto_ui_arrow_radius', 'Стрілка: заокруглення', 0, 30, 10, 1),
   ]),
 
   section('layout', '📐', 'Розкладка', [

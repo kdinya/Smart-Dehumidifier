@@ -1,6 +1,6 @@
-import { html } from '../files/lit-proxy.js?v=1.6.2';
-import { t } from '../i18n.js?v=1.6.2';
-import { resolveSdEntities } from '../dh-utils.js?v=1.6.2';
+import { html } from '../files/lit-proxy.js?v=1.6.3';
+import { t } from '../i18n.js?v=1.6.3';
+import { resolveSdEntities } from '../dh-utils.js?v=1.6.3';
 
 /**
  * Gear settings: automatic humidity + timers + language.
@@ -51,7 +51,7 @@ export function renderSettingsPanel(card, config) {
   const setNumber = async (entityId, value) => {
     if (!entityId || !hass) {
       console.warn(
-        '[Smart Dehumidifier] No entity for slider — set entities in card editor'
+        '[Smart Dehumidifier] No entity for slider — open the Smart Dehumidifier device page once so entities exist'
       );
       return;
     }
@@ -67,18 +67,82 @@ export function renderSettingsPanel(card, config) {
     }
   };
 
-  const onSlide = (entityId) => (e) => {
-    const v = e.target.value;
-    const row = e.target.closest('.sp-row');
+  const updateLabel = (input, value) => {
+    const row = input.closest('.sp-row');
     const label = row && row.querySelector('.sp-val');
     if (label) {
-      const unit = e.target.dataset.unit || '';
-      label.textContent = `${v}${unit}`;
+      const unit = input.dataset.unit || '';
+      label.textContent = `${value}${unit}`;
     }
   };
 
+  const valueFromPointer = (input, clientX) => {
+    const min = Number(input.min);
+    const max = Number(input.max);
+    const step = Number(input.step) || 1;
+    const rect = input.getBoundingClientRect();
+    if (rect.width <= 0) return Number(input.value);
+    let ratio = (clientX - rect.left) / rect.width;
+    ratio = Math.min(1, Math.max(0, ratio));
+    let raw = min + ratio * (max - min);
+    const stepped = Math.round(raw / step) * step;
+    const decimals = (String(step).split('.')[1] || '').length;
+    return Number(stepped.toFixed(decimals));
+  };
+
+  // Axis lock: only change value on horizontal drag — vertical scroll ignores slider
+  const onSliderPointerDown = (entityId) => (e) => {
+    const input = e.currentTarget;
+    if (input.disabled) return;
+    input._sdGesture = {
+      startX: e.clientX,
+      startY: e.clientY,
+      axis: null,
+      entityId,
+      moved: false,
+    };
+    try {
+      input.setPointerCapture(e.pointerId);
+    } catch (_err) {}
+    // Prevent immediate seek-to-tap which jumps value while scrolling
+    e.preventDefault();
+  };
+
+  const onSliderPointerMove = (e) => {
+    const input = e.currentTarget;
+    const g = input._sdGesture;
+    if (!g) return;
+    const dx = Math.abs(e.clientX - g.startX);
+    const dy = Math.abs(e.clientY - g.startY);
+    if (!g.axis) {
+      if (dx < 8 && dy < 8) return;
+      g.axis = dx >= dy ? 'x' : 'y';
+    }
+    if (g.axis === 'y') return;
+    g.moved = true;
+    const v = valueFromPointer(input, e.clientX);
+    input.value = String(v);
+    updateLabel(input, v);
+    e.preventDefault();
+  };
+
+  const onSliderPointerUp = (e) => {
+    const input = e.currentTarget;
+    const g = input._sdGesture;
+    if (!g) return;
+    if (g.axis === 'x' && g.moved) {
+      setNumber(g.entityId, input.value);
+    }
+    input._sdGesture = null;
+    try {
+      input.releasePointerCapture(e.pointerId);
+    } catch (_err) {}
+  };
+
+  // Keyboard / accessibility still works via native change
   const onCommit = (entityId) => (e) => {
     setNumber(entityId, e.target.value);
+    updateLabel(e.target, e.target.value);
   };
 
   const setLanguage = (lang) => {
@@ -138,7 +202,10 @@ export function renderSettingsPanel(card, config) {
         .value=${String(value)}
         data-unit=${unit}
         ?disabled=${!entityId}
-        @input=${onSlide(entityId)}
+        @pointerdown=${onSliderPointerDown(entityId)}
+        @pointermove=${onSliderPointerMove}
+        @pointerup=${onSliderPointerUp}
+        @pointercancel=${onSliderPointerUp}
         @change=${onCommit(entityId)}
       />
       ${!entityId ? html`<div class="sp-warn">—</div>` : html``}
@@ -313,7 +380,8 @@ export function renderSettingsPanel(card, config) {
         appearance: none;
         background: transparent;
         cursor: pointer;
-        touch-action: pan-y;
+        touch-action: none;
+        user-select: none;
       }
       .sp-slider:disabled {
         opacity: 0.35;
@@ -414,9 +482,9 @@ export function renderSettingsPanel(card, config) {
                       </div>
                       <div class="sp-hud-val">${vals.recommended}%</div>
                     </div>
-                    ${sliderRow(tt('delta'), entities.delta, vals.delta, 0.5, 15, 0.5, '%')}
-                    ${sliderRow(tt('min_rh'), entities.min, vals.min, 30, 90, 1, '%')}
-                    ${sliderRow(tt('max_rh'), entities.max, vals.max, 30, 95, 1, '%')}
+                    ${sliderRow(tt('delta'), entities.delta, vals.delta, 0, 20, 0.5, '%')}
+                    ${sliderRow(tt('min_rh'), entities.min, vals.min, 20, 90, 1, '%')}
+                    ${sliderRow(tt('max_rh'), entities.max, vals.max, 30, 99, 1, '%')}
                   </div>
                 `
               : html``}
@@ -437,7 +505,7 @@ export function renderSettingsPanel(card, config) {
                       entities.runtime,
                       vals.runtime,
                       1,
-                      180,
+                      240,
                       1,
                       ` ${tt('min')}`
                     )}
@@ -446,7 +514,7 @@ export function renderSettingsPanel(card, config) {
                       entities.pause,
                       vals.pause,
                       1,
-                      180,
+                      240,
                       1,
                       ` ${tt('min')}`
                     )}
