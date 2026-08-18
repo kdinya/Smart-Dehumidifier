@@ -1,6 +1,6 @@
-import { html, css, LitElement } from './files/lit-proxy.js?v=1.6.5';
-import { EDITOR_SCHEMA, ENTITY_FIELDS } from './visual-editor-config.js?v=1.6.5';
-import { t, getLang } from './i18n.js?v=1.6.5';
+import { html, css, LitElement } from './files/lit-proxy.js?v=1.6.6';
+import { EDITOR_SCHEMA, ENTITY_FIELDS } from './visual-editor-config.js?v=1.6.6';
+import { t, getLang } from './i18n.js?v=1.6.6';
 
 const STORAGE_KEY = 'dh-editor-open-sections-v8';
 const SECTION_I18N = {
@@ -14,7 +14,7 @@ const SECTION_I18N = {
   effects: 'ed_effects',
 };
 
-const EDITOR_VERSION = '1.5.0';
+const EDITOR_VERSION = '1.5.1';
 
 function fireEvent(node, type, detail = {}, options = {}) {
   const event = new CustomEvent(type, {
@@ -372,6 +372,23 @@ class DehumidifierEditor extends LitElement {
     this._setValue(field, current + direction * step);
   }
 
+
+  _tt(key) {
+    try {
+      return t(this.hass, key, this._config || {});
+    } catch (_e) {
+      return key;
+    }
+  }
+
+  _sectionTitle(section) {
+    try {
+      const key = SECTION_I18N[section?.id];
+      if (key) return this._tt(key);
+    } catch (_e) {}
+    return section?.title || section?.id || '';
+  }
+
   _toggleSection(id) {
     this._openSections = {
       ...this._openSections,
@@ -600,7 +617,10 @@ class DehumidifierEditor extends LitElement {
 
   render() {
     const entityFields = Array.isArray(ENTITY_FIELDS) ? ENTITY_FIELDS : [];
-    const optionSections = (EDITOR_SCHEMA || []).filter((s) => s.id !== 'entities');
+    const optionSections = (EDITOR_SCHEMA || []).filter((s) => s && s.id !== 'entities');
+    if (!this._openSections || typeof this._openSections !== 'object') {
+      this._openSections = buildInitialSections();
+    }
 
     return html`
       <div class="editor">

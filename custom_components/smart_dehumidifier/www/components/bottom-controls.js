@@ -1,4 +1,4 @@
-import { html } from '../files/lit-proxy.js?v=1.6.5';
+import { html } from '../files/lit-proxy.js?v=1.6.6';
 
 import {
   toFiniteNumber,
@@ -11,7 +11,7 @@ import {
   formatElapsedSince,
   DEFAULT_LAYOUT_BASE_WIDTH,
   DEFAULT_CONTROLS_MAX_WIDTH,
-} from '../dh-utils.js?v=1.6.5';
+} from '../dh-utils.js?v=1.6.6';
 
 const STATUS_MAP = {
   off: {

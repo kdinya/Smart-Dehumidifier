@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.6 — 2026-08-18
+
+### Fix
+- Visual card editor form was empty: restored missing `_tt` / `_sectionTitle` (i18n helpers)
+- All accordion tabs still collapsed by default; headers visible again
+
 ## 1.6.5 — 2026-08-18
 
 ### Defaults
