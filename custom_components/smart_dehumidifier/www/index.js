@@ -1,5 +1,5 @@
-import './dehumidifier-card.js?v=1.7.0';
-import './dehumidifier-editor.js?v=1.7.0';
+import './dehumidifier-card.js?v=1.8.0';
+import './dehumidifier-editor.js?v=1.8.0';
 
 export const SMART_DEHUMIDIFIER_VERSION = '1.7.0';
 

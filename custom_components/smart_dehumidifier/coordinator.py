@@ -477,11 +477,23 @@ class SmartDehumidifierCoordinator:
         return STATUS_LABELS.get(self.get_status(), "On")
 
     def get_status_attributes(self) -> dict[str, Any]:
+        """Expose linked entities so the Lovelace card needs no manual entity config."""
         return {
             ATTR_LABEL: self.get_status_label(),
             ATTR_MANUAL_ACTIVE: self._manual_active,
             ATTR_PAUSE_ACTIVE: self._pause_active,
             "auto_available": self.auto_mode_available,
+            "humidifier_entity": self.humidifier_entity,
+            "fan_entity": self.fan_entity,
+            "bathroom_humidity_entity": self.bathroom_humidity_entity,
+            "room_humidity_entity": self.room_humidity_entity,
+            "delta_entity": self.get_entity_id(KEY_DELTA),
+            "min_rh_entity": self.get_entity_id(KEY_MIN_RH),
+            "max_rh_entity": self.get_entity_id(KEY_MAX_RH),
+            "auto_entity": self.get_entity_id(KEY_AUTO),
+            "recommended_entity": self.get_entity_id(KEY_RECOMMENDED),
+            "manual_runtime_entity": self.get_entity_id(KEY_MANUAL_RUNTIME),
+            "pause_runtime_entity": self.get_entity_id(KEY_PAUSE_RUNTIME),
         }
 
     # ------------------------------------------------------------------

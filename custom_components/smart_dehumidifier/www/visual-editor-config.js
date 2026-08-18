@@ -12,18 +12,11 @@ const ALIGNMENT_OPTIONS = [
   { value: 'right', label: 'Праворуч' },
 ];
 
-export const ENTITY_FIELDS = [
-  ent('entity', 'Осушувач (humidifier)', 'humidifier', true),
-  ent('fan_entity', 'Вентилятор (switch)', 'switch'),
-  ent('current_humidity_entity', 'Вологість у ванній (опційно)', 'sensor'),
-  ent('room_humidity_entity', 'Вологість у кімнаті (опційно)', 'sensor'),
-];
-// delta / min / max / timers / status / auto / recommended / manual — підтягуються з інтеграції автоматично
-
+// Entities are configured only on the integration device page.
+// Card form is design-only; bindings come from status sensor attributes.
+export const ENTITY_FIELDS = [];
 
 export const EDITOR_SCHEMA = [
-  section('entities', '🔌', 'Сутності (Entities)', ENTITY_FIELDS),
-
   section('auto_humidity', '🌡️', 'Автоматична вологість (дизайн)', [
     tog('auto_ui_show', 'Показати панель Auto', true),
     num('auto_ui_popup_x', 'Зміщення панелі по X', -200, 200, 0, 1),

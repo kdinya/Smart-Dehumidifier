@@ -1,18 +1,18 @@
-import { html, css, LitElement, unsafeCSS } from './files/lit-proxy.js?v=1.7.0';
+import { html, css, LitElement, unsafeCSS } from './files/lit-proxy.js?v=1.8.0';
 
-import { renderArcSlider } from './components/arc-slider.js?v=1.7.0';
-import { renderCurrentHumidity } from './components/current-humidity.js?v=1.7.0';
-import { renderHumidityPanel } from './components/humidity-panel.js?v=1.7.0';
-import { renderBottomControls } from './components/bottom-controls.js?v=1.7.0';
-import { renderVisualEffects } from './components/visual-effects.js?v=1.7.0';
-import { renderSettingsPanel } from './components/settings-panel.js?v=1.7.0';
+import { renderArcSlider } from './components/arc-slider.js?v=1.8.0';
+import { renderCurrentHumidity } from './components/current-humidity.js?v=1.8.0';
+import { renderHumidityPanel } from './components/humidity-panel.js?v=1.8.0';
+import { renderBottomControls } from './components/bottom-controls.js?v=1.8.0';
+import { renderVisualEffects } from './components/visual-effects.js?v=1.8.0';
+import { renderSettingsPanel } from './components/settings-panel.js?v=1.8.0';
 
 import {
   toFiniteNumber,
   toPositiveNumber,
   formatElapsedSince,
   resolveSdEntities,
-} from './dh-utils.js?v=1.7.0';
+} from './dh-utils.js?v=1.8.0';
 
 const DEFAULT_BORDER_RADIUS = 28;
 const DEFAULT_HEIGHT_PERCENT = 100;
@@ -272,8 +272,6 @@ class MyDehumidifierCard extends LitElement {
   static getStubConfig() {
     return {
       type: 'custom:smart-dehumidifier',
-      entity: '',
-      fan_entity: '',
     };
   }
 
@@ -333,37 +331,12 @@ class MyDehumidifierCard extends LitElement {
   }
 
   static getConfigForm() {
+    // Design is handled by visual editor; entities come from integration.
     return {
-      schema: [
-        {
-          name: 'entity',
-          required: true,
-          selector: { entity: { domain: 'humidifier' } },
-        },
-        {
-          name: 'fan_entity',
-          selector: { entity: { domain: ['switch', 'fan'] } },
-        },
-        {
-          name: 'current_humidity_entity',
-          selector: { entity: { domain: 'sensor' } },
-        },
-        {
-          name: 'room_humidity_entity',
-          selector: { entity: { domain: 'sensor' } },
-        },
-      ],
-      computeLabel: (schema) => {
-        const labels = {
-          entity: 'Осушувач',
-          fan_entity: 'Вентилятор',
-          current_humidity_entity: 'Вологість у ванній',
-          room_humidity_entity: 'Вологість у кімнаті',
-        };
-        return labels[schema.name] || schema.name;
-      },
+      schema: [],
     };
   }
+
 
   _isFanRunning(hass = this._hass) {
     const fanEntity = this._config?.fan_entity;
@@ -373,7 +346,7 @@ class MyDehumidifierCard extends LitElement {
 
   set hass(hass) {
     const oldHass = this._hass;
-    if (hass && this._config?.entity) {
+    if (hass && this._config) {
       const resolved = resolveSdEntities(hass, this._config);
       this._config = { ...this._config, ...resolved };
       this._trackedEntityIds = extractTrackedEntities(this._config);

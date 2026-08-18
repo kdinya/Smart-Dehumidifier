@@ -1,6 +1,6 @@
-import { html, css, LitElement } from './files/lit-proxy.js?v=1.7.0';
-import { EDITOR_SCHEMA, ENTITY_FIELDS } from './visual-editor-config.js?v=1.7.0';
-import { t, getLang } from './i18n.js?v=1.7.0';
+import { html, css, LitElement } from './files/lit-proxy.js?v=1.8.0';
+import { EDITOR_SCHEMA, ENTITY_FIELDS } from './visual-editor-config.js?v=1.8.0';
+import { t, getLang } from './i18n.js?v=1.8.0';
 
 const STORAGE_KEY = 'dh-editor-open-sections-v8';
 const SECTION_I18N = {
@@ -14,7 +14,7 @@ const SECTION_I18N = {
   effects: 'ed_effects',
 };
 
-const EDITOR_VERSION = '1.5.1';
+const EDITOR_VERSION = '1.6.0';
 
 function fireEvent(node, type, detail = {}, options = {}) {
   const event = new CustomEvent(type, {
@@ -65,15 +65,13 @@ function writeStoredSections(value) {
 }
 
 function buildInitialSections(current = {}) {
-  // All accordion tabs collapsed by default (including Entities).
-  const result = { entities: false };
+  const result = {};
   for (const section of EDITOR_SCHEMA) {
     result[section.id] = false;
   }
-  // Preserve only in-session toggles passed as `current` (not localStorage).
   if (current && typeof current === 'object') {
     for (const [id, open] of Object.entries(current)) {
-      if (id in result || id === 'entities') result[id] = !!open;
+      if (id in result) result[id] = !!open;
     }
   }
   return result;
@@ -616,36 +614,16 @@ class DehumidifierEditor extends LitElement {
   }
 
   render() {
-    const entityFields = Array.isArray(ENTITY_FIELDS) ? ENTITY_FIELDS : [];
-    const optionSections = (EDITOR_SCHEMA || []).filter((s) => s && s.id !== 'entities');
+    const optionSections = Array.isArray(EDITOR_SCHEMA) ? EDITOR_SCHEMA : [];
     if (!this._openSections || typeof this._openSections !== 'object') {
       this._openSections = buildInitialSections();
     }
 
     return html`
       <div class="editor">
-        <div class="entities-block">
-          <button
-            class="entities-head"
-            type="button"
-            style="width:100%;border:0;cursor:pointer;text-align:left;font:inherit;color:inherit;"
-            @click=${() => this._toggleSection('entities')}
-          >
-            <span style="flex:1">🔌 ${this._tt('ed_entities')}</span>
-            <span class="section-arrow ${this._openSections.entities ? 'open' : ''}">▼</span>
-          </button>
-          ${this._openSections.entities
-            ? html`
-                <div class="entities-hint">
-                  Обери entity через picker або впиши вручну. Обов'язковий — основний осушувач.
-                </div>
-                <div class="entities-body">
-                  ${entityFields.length
-                    ? entityFields.map((field) => this._renderEntity(field))
-                    : html`<div class="field-label">Не вдалося завантажити список сутностей</div>`}
-                </div>
-              `
-            : html``}
+        <div class="entities-hint" style="margin-bottom:10px;opacity:0.75;font-size:12px;line-height:1.4;">
+          Сутності налаштовуються лише на сторінці пристрою Smart Dehumidifier.
+          Картка підтягує їх автоматично.
         </div>
 
         ${optionSections.map((section) => {
