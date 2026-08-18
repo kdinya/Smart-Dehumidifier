@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.2 — 2026-08-18
+
+### Card editor (Edit panel)
+- All accordion sections **collapsed by default** (including Entities)
+- New section **Автоматична вологість**: delta / min / max / recommended / auto switch / timers / status / manual toggle entity pickers
+
 ## 1.6.1 — 2026-08-18
 
 ### UI

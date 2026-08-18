@@ -24,6 +24,18 @@ export const ENTITY_FIELDS = [
 export const EDITOR_SCHEMA = [
   section('entities', '🔌', 'Сутності (Entities)', ENTITY_FIELDS),
 
+  section('auto_humidity', '🌡️', 'Автоматична вологість', [
+    ent('delta_entity', 'Delta — зсув від кімнати (number)', 'number'),
+    ent('min_rh_entity', 'Мін. цільова RH (number)', 'number'),
+    ent('max_rh_entity', 'Макс. цільова RH (number)', 'number'),
+    ent('calc_entity', 'Рекомендована вологість (sensor)', 'sensor'),
+    ent('auto_entity', 'Перемикач Auto (switch)', 'switch'),
+    ent('manual_runtime_entity', 'Тривалість ручного режиму (number)', 'number'),
+    ent('manual_pause_runtime_entity', 'Тривалість паузи (number)', 'number'),
+    ent('status_entity', 'Статус (sensor)', 'sensor'),
+    ent('manual_script_entity', 'Кнопка Manual Toggle (button)', 'button'),
+  ]),
+
   section('layout', '📐', 'Розкладка', [
     num('card_border_radius', 'Заокруглення картки', 0, 80, 28, 1),
     num('card_height_percent', 'Висота картки на телефоні (%)', 30, 200, 100, 1),

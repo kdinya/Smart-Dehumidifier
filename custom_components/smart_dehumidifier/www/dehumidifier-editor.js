@@ -1,8 +1,8 @@
-import { html, css, LitElement } from './files/lit-proxy.js?v=1.6.1';
-import { EDITOR_SCHEMA, ENTITY_FIELDS } from './visual-editor-config.js?v=1.6.1';
+import { html, css, LitElement } from './files/lit-proxy.js?v=1.6.2';
+import { EDITOR_SCHEMA, ENTITY_FIELDS } from './visual-editor-config.js?v=1.6.2';
 
 const STORAGE_KEY = 'dh-editor-open-sections-v6';
-const EDITOR_VERSION = '1.2.0';
+const EDITOR_VERSION = '1.3.0';
 
 function fireEvent(node, type, detail = {}, options = {}) {
   const event = new CustomEvent(type, {
@@ -53,20 +53,15 @@ function writeStoredSections(value) {
 }
 
 function buildInitialSections(current = {}) {
-  const stored = readStoredSections() || {};
-  const result = {};
+  // Always start collapsed; session toggles live only in `current`.
+  const result = { entities: false };
   for (const section of EDITOR_SCHEMA) {
-    if (section.id === 'entities') continue;
-    if (section.id in current) {
-      result[section.id] = !!current[section.id];
-      continue;
-    }
-    if (section.id in stored) {
-      result[section.id] = !!stored[section.id];
-      continue;
-    }
-    // All sections collapsed by default
     result[section.id] = false;
+  }
+  if (current && typeof current === 'object') {
+    for (const [id, open] of Object.entries(current)) {
+      if (id in result || id === 'entities') result[id] = !!open;
+    }
   }
   return result;
 }
@@ -536,15 +531,27 @@ class DehumidifierEditor extends LitElement {
     return html`
       <div class="editor">
         <div class="entities-block">
-          <div class="entities-head">🔌 Сутності (Entities)</div>
-          <div class="entities-hint">
-            Обери entity через picker або впиши вручну. Обов'язковий — основний осушувач.
-          </div>
-          <div class="entities-body">
-            ${entityFields.length
-              ? entityFields.map((field) => this._renderEntity(field))
-              : html`<div class="field-label">Не вдалося завантажити список сутностей</div>`}
-          </div>
+          <button
+            class="entities-head"
+            type="button"
+            style="width:100%;border:0;cursor:pointer;text-align:left;font:inherit;color:inherit;"
+            @click=${() => this._toggleSection('entities')}
+          >
+            <span style="flex:1">🔌 Сутності (Entities)</span>
+            <span class="section-arrow ${this._openSections.entities ? 'open' : ''}">▼</span>
+          </button>
+          ${this._openSections.entities
+            ? html`
+                <div class="entities-hint">
+                  Обери entity через picker або впиши вручну. Обов'язковий — основний осушувач.
+                </div>
+                <div class="entities-body">
+                  ${entityFields.length
+                    ? entityFields.map((field) => this._renderEntity(field))
+                    : html`<div class="field-label">Не вдалося завантажити список сутностей</div>`}
+                </div>
+              `
+            : html``}
         </div>
 
         ${optionSections.map((section) => {

@@ -1,6 +1,6 @@
-import { html } from '../files/lit-proxy.js?v=1.6.1';
-import { t } from '../i18n.js?v=1.6.1';
-import { resolveSdEntities } from '../dh-utils.js?v=1.6.1';
+import { html } from '../files/lit-proxy.js?v=1.6.2';
+import { t } from '../i18n.js?v=1.6.2';
+import { resolveSdEntities } from '../dh-utils.js?v=1.6.2';
 
 /**
  * Gear settings: automatic humidity + timers + language.
