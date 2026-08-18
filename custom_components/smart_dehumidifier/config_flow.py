@@ -124,22 +124,30 @@ class SmartDehumidifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
     ) -> SmartDehumidifierOptionsFlow:
-        return SmartDehumidifierOptionsFlow(config_entry)
+        """Create the options flow (HA injects config_entry automatically)."""
+        return SmartDehumidifierOptionsFlow()
 
 
 class SmartDehumidifierOptionsFlow(config_entries.OptionsFlow):
-    """Handle options."""
+    """Handle options for Smart Dehumidifier.
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        self.config_entry = config_entry
+    Compatible with Home Assistant 2025.12+ where config_entry is a
+    read-only property provided by the base class.
+    """
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
+        """Manage the options."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            errors = await _validate_entities(self.hass, user_input)
+            # Options flow does not re-validate the humidifier (it is in data).
+            # Only optional entities are present.
+            for key in (CONF_FAN, CONF_BATHROOM_HUMIDITY, CONF_ROOM_HUMIDITY):
+                eid = user_input.get(key)
+                if eid and self.hass.states.get(eid) is None:
+                    errors[key] = "entity_not_found"
             if not errors:
                 return self.async_create_entry(title="", data=user_input)
 

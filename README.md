@@ -1,6 +1,6 @@
 # Smart Dehumidifier
 
-**Version 1.6.5** — production-ready custom integration for Home Assistant.
+**Version 1.8.1** — production-ready custom integration for Home Assistant.
 
 Intelligent control of a bathroom dehumidifier + optional fan, with automatic target humidity calculated from an adjacent room sensor.
 
@@ -11,6 +11,11 @@ Intelligent control of a bathroom dehumidifier + optional fan, with automatic ta
 - **State restore** — Auto switch and all settings survive HA restarts
 - **Beautiful Lovelace card** with arc slider, multi-language (UK / RU / EN)
 - **HACS compatible**
+
+## Requirements
+
+- Home Assistant **2024.12.0** or newer (recommended **2025.12+**)
+- A `humidifier` entity for the dehumidifier
 
 ## Installation (HACS)
 
@@ -23,7 +28,7 @@ Intelligent control of a bathroom dehumidifier + optional fan, with automatic ta
    - Fan switch / fan (optional)
    - Bathroom humidity sensor (optional)
    - Adjacent room humidity sensor (recommended for auto)
-6. Add Lovelace resource (usually auto-registered):  
+6. Lovelace resource is usually auto-registered:
    `/smart_dehumidifier_files/index.js` (JavaScript Module)  
    Force refresh: Ctrl+F5
 
@@ -47,6 +52,17 @@ target = clamp(room_humidity + delta, min_rh, max_rh)
 
 - If room sensor is missing → uses bathroom or midpoint of min/max.
 - Changes to delta / min / max or humidity sensors immediately update the recommended value and (when Auto is on) push it to the humidifier.
+- Auto-related entities (Auto switch, Delta, Min/Max, Recommended) are shown only when a room humidity sensor is configured.
+
+## Options / Reconfigure
+
+On the integration page you can change:
+
+- Fan entity
+- Bathroom humidity sensor
+- Room humidity sensor (enables Auto mode)
+
+Name, humidifier entity and prefix are fixed at setup (remove and re-add the integration to change them).
 
 ## Services
 
