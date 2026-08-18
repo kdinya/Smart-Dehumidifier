@@ -1,18 +1,18 @@
-import { html, css, LitElement, unsafeCSS } from './files/lit-proxy.js?v=1.6.4';
+import { html, css, LitElement, unsafeCSS } from './files/lit-proxy.js?v=1.6.5';
 
-import { renderArcSlider } from './components/arc-slider.js?v=1.6.4';
-import { renderCurrentHumidity } from './components/current-humidity.js?v=1.6.4';
-import { renderHumidityPanel } from './components/humidity-panel.js?v=1.6.4';
-import { renderBottomControls } from './components/bottom-controls.js?v=1.6.4';
-import { renderVisualEffects } from './components/visual-effects.js?v=1.6.4';
-import { renderSettingsPanel } from './components/settings-panel.js?v=1.6.4';
+import { renderArcSlider } from './components/arc-slider.js?v=1.6.5';
+import { renderCurrentHumidity } from './components/current-humidity.js?v=1.6.5';
+import { renderHumidityPanel } from './components/humidity-panel.js?v=1.6.5';
+import { renderBottomControls } from './components/bottom-controls.js?v=1.6.5';
+import { renderVisualEffects } from './components/visual-effects.js?v=1.6.5';
+import { renderSettingsPanel } from './components/settings-panel.js?v=1.6.5';
 
 import {
   toFiniteNumber,
   toPositiveNumber,
   formatElapsedSince,
   resolveSdEntities,
-} from './dh-utils.js?v=1.6.4';
+} from './dh-utils.js?v=1.6.5';
 
 const DEFAULT_BORDER_RADIUS = 28;
 const DEFAULT_HEIGHT_PERCENT = 100;
@@ -306,10 +306,12 @@ class MyDehumidifierCard extends LitElement {
   setConfig(config) {
     if (config.arc_radius === undefined) config = { ...config, arc_radius: 150 };
     if (!config.language && !config.lang) {
+      let lang = 'uk';
       try {
         const stored = localStorage.getItem('sd_card_lang');
-        if (stored) config = { ...config, language: stored };
+        if (stored) lang = stored;
       } catch (_e) {}
+      config = { ...config, language: lang };
     }
     if (!config || typeof config !== 'object') {
       throw new Error('Невалідна конфігурація картки');
@@ -567,7 +569,7 @@ class MyDehumidifierCard extends LitElement {
     `;
 
     return html`
-      <ha-card style="${cardStyle}">
+      <ha-card class="${this._isSettingsOpen ? 'dh-settings-open' : ''}" style="${cardStyle}">
         <div class="dh-card-bg" aria-hidden="true">
           <div class="dh-card-bg__base"></div>
           <div class="dh-card-bg__vignette"></div>
@@ -578,7 +580,7 @@ class MyDehumidifierCard extends LitElement {
           <div class="dh-card-bg__edge"></div>
         </div>
 
-        <button class="dh-cog-btn" @click=${() => { this._isSettingsOpen = true; }}>
+        <button class="dh-cog-btn" @click=${() => { this._isSettingsOpen = true; this.requestUpdate(); }}>
           <ha-icon icon="mdi:cog"></ha-icon>
         </button>
 

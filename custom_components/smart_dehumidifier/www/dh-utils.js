@@ -152,7 +152,9 @@ export function resolveSdEntities(hass, config = {}) {
     return out;
   }
 
-  const registry = hass.entities || {};
+  let registry = {};
+  try {
+  registry = hass.entities || {};
   const main = out.entity;
   const mainReg = main ? registry[main] : null;
   const deviceId = mainReg?.device_id || null;
@@ -222,6 +224,12 @@ export function resolveSdEntities(hass, config = {}) {
     auto: out.auto_entity,
     calc: out.calc_entity,
   });
+  } catch (err) {
+    sdLog('error', 'resolveSdEntities failed', err);
+    for (const k of HELPER_KEYS) {
+      if (config[k]) out[k] = config[k];
+    }
+  }
 
   return out;
 }

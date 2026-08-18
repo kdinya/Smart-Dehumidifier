@@ -1,6 +1,6 @@
-import { html } from '../files/lit-proxy.js?v=1.6.4';
-import { t } from '../i18n.js?v=1.6.4';
-import { resolveSdEntities, sdLog } from '../dh-utils.js?v=1.6.4';
+import { html } from '../files/lit-proxy.js?v=1.6.5';
+import { t } from '../i18n.js?v=1.6.5';
+import { resolveSdEntities, sdLog } from '../dh-utils.js?v=1.6.5';
 
 /**
  * Gear settings: auto humidity + timers + language.
@@ -38,8 +38,8 @@ export function renderSettingsPanel(card, config) {
 
   const vals = {
     delta: getVal(entities.delta, 3),
-    min: getVal(entities.min, 45),
-    max: getVal(entities.max, 65),
+    min: getVal(entities.min, 65),
+    max: getVal(entities.max, 85),
     runtime: getVal(entities.runtime, 20),
     pause: getVal(entities.pause, 20),
     recommended:
@@ -109,9 +109,7 @@ export function renderSettingsPanel(card, config) {
     }
   }
   if (!currentLang) {
-    const raw = (hass.locale && hass.locale.language) || hass.language || 'en';
-    const code = String(raw).toLowerCase().slice(0, 2);
-    currentLang = code === 'uk' || code === 'ua' ? 'uk' : code === 'ru' ? 'ru' : 'en';
+    currentLang = 'uk';
   }
 
   const toggleSection = (id) => {

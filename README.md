@@ -1,6 +1,6 @@
 # Smart Dehumidifier
 
-**Version 1.6.4** — production-ready custom integration for Home Assistant.
+**Version 1.6.5** — production-ready custom integration for Home Assistant.
 
 Intelligent control of a bathroom dehumidifier + optional fan, with automatic target humidity calculated from an adjacent room sensor.
 

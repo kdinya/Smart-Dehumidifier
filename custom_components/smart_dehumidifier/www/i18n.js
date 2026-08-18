@@ -125,15 +125,8 @@ export function getLang(hass, config) {
     const stored = localStorage.getItem('sd_card_lang');
     if (stored && STRINGS[stored]) return stored;
   } catch (_e) {}
-  const raw =
-    hass?.locale?.language ||
-    hass?.language ||
-    (typeof navigator !== 'undefined' ? navigator.language : 'en') ||
-    'en';
-  const code = String(raw).toLowerCase().slice(0, 2);
-  if (code === 'uk' || code === 'ua') return 'uk';
-  if (code === 'ru') return 'ru';
-  return 'en';
+  // Integration default: Ukrainian
+  return 'uk';
 }
 
 export function t(hass, key, config) {

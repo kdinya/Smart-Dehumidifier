@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 DOMAIN = "smart_dehumidifier"
-VERSION = "1.6.4"
+VERSION = "1.6.5"
 
 CONF_HUMIDIFIER = "humidifier_entity"
 CONF_FAN = "fan_entity"
@@ -16,8 +16,8 @@ DEFAULT_NAME = "Smart Dehumidifier"
 DEFAULT_PREFIX = "sd"
 
 DEFAULT_DELTA = 3.0
-DEFAULT_MIN_RH = 45.0
-DEFAULT_MAX_RH = 65.0
+DEFAULT_MIN_RH = 65.0
+DEFAULT_MAX_RH = 85.0
 DEFAULT_MANUAL_RUNTIME = 20.0
 DEFAULT_PAUSE_RUNTIME = 20.0
 

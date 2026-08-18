@@ -1,8 +1,8 @@
-import { html, css, LitElement } from './files/lit-proxy.js?v=1.6.4';
-import { EDITOR_SCHEMA, ENTITY_FIELDS } from './visual-editor-config.js?v=1.6.4';
-import { t, getLang } from './i18n.js?v=1.6.4';
+import { html, css, LitElement } from './files/lit-proxy.js?v=1.6.5';
+import { EDITOR_SCHEMA, ENTITY_FIELDS } from './visual-editor-config.js?v=1.6.5';
+import { t, getLang } from './i18n.js?v=1.6.5';
 
-const STORAGE_KEY = 'dh-editor-open-sections-v6';
+const STORAGE_KEY = 'dh-editor-open-sections-v8';
 const SECTION_I18N = {
   entities: 'ed_entities',
   auto_humidity: 'ed_auto_humidity',
@@ -65,11 +65,12 @@ function writeStoredSections(value) {
 }
 
 function buildInitialSections(current = {}) {
-  // Always start collapsed; session toggles live only in `current`.
+  // All accordion tabs collapsed by default (including Entities).
   const result = { entities: false };
   for (const section of EDITOR_SCHEMA) {
     result[section.id] = false;
   }
+  // Preserve only in-session toggles passed as `current` (not localStorage).
   if (current && typeof current === 'object') {
     for (const [id, open] of Object.entries(current)) {
       if (id in result || id === 'entities') result[id] = !!open;
@@ -377,6 +378,7 @@ class DehumidifierEditor extends LitElement {
       [id]: !this._openSections[id],
     };
     writeStoredSections(this._openSections);
+    this.requestUpdate();
   }
 
   _resetField(field) {
