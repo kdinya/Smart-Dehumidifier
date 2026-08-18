@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.1 — 2026-08-18
+
+### UI
+- Settings (gear) modal: vertical scroll / drag works on mobile and desktop
+- Card editor sections collapsed by default
+- Explicit **Automatic humidity** section in gear settings (delta / min / max / recommended)
+
 ## 1.6.0 — 2026-08-18
 
 ### Breaking / Major improvements

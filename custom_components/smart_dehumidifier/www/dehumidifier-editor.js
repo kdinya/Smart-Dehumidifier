@@ -1,7 +1,7 @@
-import { html, css, LitElement } from './files/lit-proxy.js?v=1.5.2';
-import { EDITOR_SCHEMA, ENTITY_FIELDS } from './visual-editor-config.js?v=1.5.2';
+import { html, css, LitElement } from './files/lit-proxy.js?v=1.6.1';
+import { EDITOR_SCHEMA, ENTITY_FIELDS } from './visual-editor-config.js?v=1.6.1';
 
-const STORAGE_KEY = 'dh-editor-open-sections-v5';
+const STORAGE_KEY = 'dh-editor-open-sections-v6';
 const EDITOR_VERSION = '1.2.0';
 
 function fireEvent(node, type, detail = {}, options = {}) {
@@ -65,7 +65,8 @@ function buildInitialSections(current = {}) {
       result[section.id] = !!stored[section.id];
       continue;
     }
-    result[section.id] = section.id === 'layout';
+    // All sections collapsed by default
+    result[section.id] = false;
   }
   return result;
 }

@@ -1,6 +1,7 @@
 const STRINGS = {
   uk: {
     auto: 'Авто',
+    auto_humidity: 'Автоматична вологість',
     manual: 'Ручний',
     pause: 'Пауза',
     off: 'Вимкнено',
@@ -26,6 +27,7 @@ const STRINGS = {
   },
   ru: {
     auto: 'Авто',
+    auto_humidity: 'Автоматическая влажность',
     manual: 'Ручной',
     pause: 'Пауза',
     off: 'Выключено',
@@ -51,6 +53,7 @@ const STRINGS = {
   },
   en: {
     auto: 'Auto',
+    auto_humidity: 'Automatic humidity',
     manual: 'Manual',
     pause: 'Pause',
     off: 'Off',
