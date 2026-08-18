@@ -36,7 +36,7 @@ async def async_register_frontend(hass: HomeAssistant) -> None:
                 [StaticPathConfig(URL_BASE, str(src), False)]
             )
             _registered_path = True
-            _LOGGER.warning("SD card static path %s → %s", URL_BASE, src)
+            _LOGGER.debug("SD card static path %s → %s", URL_BASE, src)
         except Exception as err:
             if "already" in str(err).lower() or "exists" in str(err).lower():
                 _registered_path = True
@@ -47,11 +47,11 @@ async def async_register_frontend(hass: HomeAssistant) -> None:
     async def _ensure(_now=None) -> None:
         await _async_ensure_resource(hass)
 
-    # Run after start and also once shortly after setup (for reloads)
     if hass.is_running:
         async_call_later(hass, 2, lambda now: hass.async_create_task(_ensure()))
         async_call_later(hass, 15, lambda now: hass.async_create_task(_ensure()))
     else:
+
         async def _on_start(_event: Event) -> None:
             async_call_later(hass, 5, lambda now: hass.async_create_task(_ensure()))
 
@@ -62,7 +62,7 @@ async def _async_ensure_resource(hass: HomeAssistant) -> None:
     """Create or UPDATE Lovelace resource to CARD_URL_VERSIONED."""
     resources = _find_resources(hass)
     if resources is None:
-        _LOGGER.warning(
+        _LOGGER.info(
             "Add Lovelace resource manually: %s (JavaScript Module)",
             CARD_URL_VERSIONED,
         )
@@ -87,36 +87,34 @@ async def _async_ensure_resource(hass: HomeAssistant) -> None:
         if not isinstance(item, dict):
             continue
         url = str(item.get("url") or "")
-        if "smart_dehumidifier" not in url and DOMAIN not in url and "dehumidifier" not in url.lower():
-            # only our card paths
-            if "/smart_dehumidifier_files/" not in url and "smart_dehumidifier" not in url:
-                continue
-        if "/smart_dehumidifier_files/" in url or "smart_dehumidifier" in url:
-            found_id = item.get("id")
-            found_url = url
-            break
+        if (
+            "/smart_dehumidifier_files/" not in url
+            and "smart_dehumidifier" not in url
+            and "dehumidifier" not in url.lower()
+        ):
+            continue
+        found_id = item.get("id")
+        found_url = url
+        break
 
-    # Exact match already
     if found_url == target:
-        _LOGGER.info("SD card resource OK: %s", target)
+        _LOGGER.debug("SD card resource OK: %s", target)
         return
 
-    # Update existing entry to new versioned URL
     if found_id is not None and hasattr(resources, "async_update_item"):
         try:
             await resources.async_update_item(
                 found_id, {"res_type": "module", "url": target}
             )
-            _LOGGER.warning("SD card resource UPDATED: %s → %s", found_url, target)
+            _LOGGER.info("SD card resource UPDATED: %s → %s", found_url, target)
             return
         except Exception as err:
-            _LOGGER.warning("Resource update failed (%s), try create", err)
+            _LOGGER.debug("Resource update failed (%s), try create", err)
 
-    # Create new if missing
     if found_url is None:
         try:
             await resources.async_create_item({"res_type": "module", "url": target})
-            _LOGGER.warning("SD card resource CREATED: %s", target)
+            _LOGGER.info("SD card resource CREATED: %s", target)
             return
         except Exception as err:
             _LOGGER.warning(
@@ -126,11 +124,10 @@ async def _async_ensure_resource(hass: HomeAssistant) -> None:
             )
             return
 
-    # Had old URL but could not update — create versioned alongside
     if found_url != target:
         try:
             await resources.async_create_item({"res_type": "module", "url": target})
-            _LOGGER.warning("SD card resource added (old left): %s", target)
+            _LOGGER.info("SD card resource added (old left): %s", target)
         except Exception as err:
             _LOGGER.warning("Add resource manually: %s (%s)", target, err)
 

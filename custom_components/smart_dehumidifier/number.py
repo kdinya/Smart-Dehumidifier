@@ -2,28 +2,28 @@
 
 from __future__ import annotations
 
-from homeassistant.components.number import NumberEntity, NumberMode
+from homeassistant.components.number import NumberEntity, NumberMode, RestoreNumber
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.const import PERCENTAGE, UnitOfTime
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
-    KEY_RECOMMENDED,
+    DEFAULT_DELTA,
+    DEFAULT_MANUAL_RUNTIME,
+    DEFAULT_MAX_RH,
+    DEFAULT_MIN_RH,
+    DEFAULT_PAUSE_RUNTIME,
     DOMAIN,
     KEY_DELTA,
-    KEY_MIN_RH,
-    KEY_MAX_RH,
     KEY_MANUAL_RUNTIME,
+    KEY_MAX_RH,
+    KEY_MIN_RH,
     KEY_PAUSE_RUNTIME,
-    DEFAULT_DELTA,
-    DEFAULT_MIN_RH,
-    DEFAULT_MAX_RH,
-    DEFAULT_MANUAL_RUNTIME,
-    DEFAULT_PAUSE_RUNTIME,
+    KEY_RECOMMENDED,
 )
-from . import SmartDehumidifierCoordinator
+from .coordinator import SmartDehumidifierCoordinator
 
 
 async def async_setup_entry(
@@ -69,11 +69,11 @@ async def async_setup_entry(
         coordinator.register_entity(ent.key, ent)
 
 
-class SmartDehumidifierNumber(NumberEntity):
+class SmartDehumidifierNumber(RestoreNumber, NumberEntity):
+    """Configurable number with state restore across restarts."""
+
     _attr_entity_category = EntityCategory.CONFIG
     _attr_entity_registry_enabled_default = True
-    """Generic number entity for settings."""
-
     _attr_has_entity_name = True
     _attr_mode = NumberMode.SLIDER
     _attr_should_poll = False
@@ -98,6 +98,7 @@ class SmartDehumidifierNumber(NumberEntity):
         self._attr_native_step = step
         self._attr_native_unit_of_measurement = unit
         self._attr_native_value = default
+        self._default = default
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.entry.entry_id)},
             name=coordinator.name,
@@ -105,13 +106,19 @@ class SmartDehumidifierNumber(NumberEntity):
             model="Virtual Controller",
         )
 
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last = await self.async_get_last_number_data()
+        if last and last.native_value is not None:
+            self._attr_native_value = last.native_value
+
     async def async_set_native_value(self, value: float) -> None:
         self._attr_native_value = value
         self.async_write_ha_state()
-        # Delta / min / max → recalculate recommended and push to humidifier if auto
+        # Delta / min / max → recalculate recommended and push if auto
         if self.key in (KEY_MIN_RH, KEY_MAX_RH, KEY_DELTA):
             rec = self.coordinator.entities.get(KEY_RECOMMENDED)
-            if rec:
+            if rec and hasattr(rec, "async_write_ha_state"):
                 rec.async_write_ha_state()
-            if self.coordinator._is_auto_on():
-                await self.coordinator._async_sync_target_humidity()
+            if self.coordinator.is_auto_on():
+                await self.coordinator.async_sync_target_humidity()

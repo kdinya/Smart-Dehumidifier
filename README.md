@@ -1,64 +1,68 @@
 # Smart Dehumidifier
 
-> **BETA** — проєкт ще налаштовується. Структура й API можуть змінюватись.
+**Version 1.6.0** — production-ready custom integration for Home Assistant.
 
-Версія **1.4.1**
+Intelligent control of a bathroom dehumidifier + optional fan, with automatic target humidity calculated from an adjacent room sensor.
 
-## Структура репозиторію (стандарт HACS Integration)
+## Features
 
-```
-Smart-Dehumidifier/
-├── custom_components/
-│   └── smart_dehumidifier/
-│       ├── __init__.py          # логіка + fan / auto / manual
-│       ├── manifest.json
-│       ├── config_flow.py       # UI: humidifier, fan, room + bathroom RH
-│       ├── sensor.py / switch.py / number.py / button.py
-│       ├── frontend.py          # HTTP: /smart_dehumidifier_files/
-│       └── www/                 # Lovelace card
-│           ├── index.js
-│           ├── dehumidifier-card.js
-│           ├── components/
-│           └── i18n.js          # uk / ru / en
-├── hacs.json
-├── README.md
-└── LICENSE
-```
+- **Auto mode** — target humidity = room RH + delta, clamped to min/max
+- **Manual / Pause timers** — physical fan button or Lovelace button cycles Idle → Manual → Pause
+- **State restore** — Auto switch and all settings survive HA restarts
+- **Beautiful Lovelace card** with arc slider, multi-language (UK / RU / EN)
+- **HACS compatible**
 
-## Встановлення (бета)
+## Installation (HACS)
 
-1. HACS → **Integration** → `https://github.com/kdinya/Smart-Dehumidifier`
-2. Restart Home Assistant
-3. Settings → Devices & services → **Smart Dehumidifier**
-4. Вкажи: humidifier, fan (smart switch), вологість **ванної**, вологість **кімнати**
-5. Resource: `/smart_dehumidifier_files/index.js` (JavaScript Module)
-6. Ctrl+F5
+1. HACS → Integrations → Custom repositories → add `https://github.com/kdinya/Smart-Dehumidifier`
+2. Install **Smart Dehumidifier**
+3. Restart Home Assistant
+4. Settings → Devices & services → Add Integration → **Smart Dehumidifier**
+5. Select:
+   - Humidifier entity (required)
+   - Fan switch / fan (optional)
+   - Bathroom humidity sensor (optional)
+   - Adjacent room humidity sensor (recommended for auto)
+6. Add Lovelace resource (usually auto-registered):  
+   `/smart_dehumidifier_files/index.js` (JavaScript Module)  
+   Force refresh: Ctrl+F5
 
-## Картка
-
-Налаштування — **тільки в шестерні на картці** (не на сторінці пристрою):
-
-- Дельта / min / max / таймери (повзунки → `number.*`)
-- Автопанель: зміщення **X / Y**, радіус дуги (за замовч. **150**)
-- Мова: **UK / RU / EN**
+## Lovelace card
 
 ```yaml
 type: custom:smart-dehumidifier
-entity: humidifier.xxx
-fan_entity: switch.xxx
-language: uk
+entity: humidifier.your_dehumidifier
+fan_entity: switch.your_fan          # optional
+language: uk                         # uk | ru | en
 arc_radius: 150
 ```
 
-## Автовологість
+All settings (delta, min/max RH, timers) are available via the gear icon on the card or as regular `number.*` entities.
+
+## Auto humidity algorithm
 
 ```
-ціль = clamp(вологість_кімнати + дельта, min, max)
+target = clamp(room_humidity + delta, min_rh, max_rh)
 ```
 
-Осушувач і вентилятор у **ванні**; орієнтир — **сусідня кімната**.  
-Якщо сенсора кімнати немає — інший розрахунок (ванна / середина діапазону).
+- If room sensor is missing → uses bathroom or midpoint of min/max.
+- Changes to delta / min / max or humidity sensors immediately update the recommended value and (when Auto is on) push it to the humidifier.
 
-## Ліцензія
+## Services
+
+```yaml
+service: smart_dehumidifier.manual_toggle
+data:
+  entry_id: "optional_config_entry_id"   # omit to toggle all
+```
+
+## Development & Tests
+
+```bash
+pip install -r tests/requirements_test.txt
+pytest --cov=custom_components/smart_dehumidifier -q
+```
+
+## License
 
 MIT

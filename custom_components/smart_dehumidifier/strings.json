@@ -3,16 +3,20 @@
     "step": {
       "user": {
         "title": "Smart Dehumidifier",
-        "description": "Humidifier in bathroom + fan (smart switch). Auto target uses adjacent room humidity + delta.",
+        "description": "Humidifier in bathroom + optional fan (smart switch). Auto target uses adjacent room humidity + delta.",
         "data": {
           "name": "Name",
-          "humidifier_entity": "Dehumidifier (humidifier)",
-          "fan_entity": "Fan switch",
-          "bathroom_humidity_entity": "Bathroom humidity sensor",
-          "room_humidity_entity": "Adjacent room humidity (for auto)",
-          "prefix": "Prefix"
+          "humidifier_entity": "Dehumidifier (humidifier entity)",
+          "fan_entity": "Fan switch (optional)",
+          "bathroom_humidity_entity": "Bathroom humidity sensor (optional)",
+          "room_humidity_entity": "Adjacent room humidity (for auto target)",
+          "prefix": "Entity prefix"
         }
       }
+    },
+    "error": {
+      "entity_not_found": "Entity not found or unavailable",
+      "required": "This field is required"
     },
     "abort": {
       "already_configured": "This dehumidifier is already configured"
@@ -28,6 +32,9 @@
           "room_humidity_entity": "Room humidity (auto)"
         }
       }
+    },
+    "error": {
+      "entity_not_found": "Entity not found or unavailable"
     }
   }
 }

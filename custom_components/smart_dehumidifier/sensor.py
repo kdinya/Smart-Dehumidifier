@@ -5,11 +5,11 @@ from __future__ import annotations
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import DeviceInfo, EntityCategory
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, KEY_MAX_RH, KEY_MIN_RH, KEY_RECOMMENDED, KEY_STATUS, VERSION
-from . import SmartDehumidifierCoordinator
+from .const import DOMAIN, KEY_RECOMMENDED, KEY_STATUS, VERSION
+from .coordinator import SmartDehumidifierCoordinator
 
 
 async def async_setup_entry(
@@ -30,9 +30,11 @@ async def async_setup_entry(
 
 class SmartDehumidifierBaseSensor(SensorEntity):
     _attr_has_entity_name = True
-    _attr_should_poll = True  # refresh recommended from room sensor
+    _attr_should_poll = False
 
-    def __init__(self, coordinator: SmartDehumidifierCoordinator, key: str, name: str) -> None:
+    def __init__(
+        self, coordinator: SmartDehumidifierCoordinator, key: str, name: str
+    ) -> None:
         self.coordinator = coordinator
         self.key = key
         self._attr_unique_id = f"{coordinator.entry.entry_id}_{key}"
@@ -50,7 +52,6 @@ class SmartDehumidifierStatusSensor(SmartDehumidifierBaseSensor):
     def __init__(self, coordinator: SmartDehumidifierCoordinator) -> None:
         super().__init__(coordinator, KEY_STATUS, "Status")
         self._attr_icon = "mdi:air-humidifier"
-        self._attr_should_poll = False
 
     @property
     def native_value(self) -> str:
@@ -58,11 +59,7 @@ class SmartDehumidifierStatusSensor(SmartDehumidifierBaseSensor):
 
     @property
     def extra_state_attributes(self) -> dict:
-        return {
-            "label": self.coordinator.get_status_label(),
-            "manual_active": self.coordinator._manual_active,
-            "pause_active": self.coordinator._pause_active,
-        }
+        return self.coordinator.get_status_attributes()
 
 
 class SmartDehumidifierRecommendedSensor(SmartDehumidifierBaseSensor):

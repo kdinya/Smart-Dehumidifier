@@ -24,10 +24,13 @@ from .const import (
 )
 
 
-def _user_schema() -> vol.Schema:
+def _user_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
+    defaults = defaults or {}
     return vol.Schema(
         {
-            vol.Required(CONF_NAME, default=DEFAULT_NAME): str,
+            vol.Required(
+                CONF_NAME, default=defaults.get(CONF_NAME, DEFAULT_NAME)
+            ): str,
             vol.Required(CONF_HUMIDIFIER): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="humidifier")
             ),
@@ -35,60 +38,110 @@ def _user_schema() -> vol.Schema:
                 selector.EntitySelectorConfig(domain=["switch", "fan"])
             ),
             vol.Optional(CONF_BATHROOM_HUMIDITY): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="sensor", device_class=["humidity"])
+                selector.EntitySelectorConfig(
+                    domain="sensor", device_class=["humidity"]
+                )
             ),
             vol.Optional(CONF_ROOM_HUMIDITY): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="sensor", device_class=["humidity"])
+                selector.EntitySelectorConfig(
+                    domain="sensor", device_class=["humidity"]
+                )
             ),
-            vol.Optional(CONF_PREFIX, default=DEFAULT_PREFIX): str,
+            vol.Optional(
+                CONF_PREFIX, default=defaults.get(CONF_PREFIX, DEFAULT_PREFIX)
+            ): str,
         }
     )
 
 
+async def _validate_entities(
+    hass: HomeAssistant, user_input: dict[str, Any]
+) -> dict[str, str]:
+    """Return errors dict if any required entity is missing/unavailable."""
+    errors: dict[str, str] = {}
+
+    humidifier = user_input.get(CONF_HUMIDIFIER)
+    if not humidifier:
+        errors[CONF_HUMIDIFIER] = "required"
+    else:
+        state = hass.states.get(humidifier)
+        if state is None:
+            errors[CONF_HUMIDIFIER] = "entity_not_found"
+
+    for key in (CONF_FAN, CONF_BATHROOM_HUMIDITY, CONF_ROOM_HUMIDITY):
+        eid = user_input.get(key)
+        if eid:
+            state = hass.states.get(eid)
+            if state is None:
+                errors[key] = "entity_not_found"
+
+    return errors
+
+
 class SmartDehumidifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    """Handle a config flow for Smart Dehumidifier."""
+
     VERSION = 2
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         errors: dict[str, str] = {}
+
         if user_input is not None:
-            humidifier = user_input[CONF_HUMIDIFIER]
-            prefix = (user_input.get(CONF_PREFIX) or DEFAULT_PREFIX).strip().lower()
-            prefix = "".join(c if c.isalnum() or c == "_" else "_" for c in prefix) or DEFAULT_PREFIX
+            errors = await _validate_entities(self.hass, user_input)
+            if not errors:
+                humidifier = user_input[CONF_HUMIDIFIER]
+                prefix = (user_input.get(CONF_PREFIX) or DEFAULT_PREFIX).strip().lower()
+                prefix = (
+                    "".join(c if c.isalnum() or c == "_" else "_" for c in prefix)
+                    or DEFAULT_PREFIX
+                )
 
-            await self.async_set_unique_id(f"{DOMAIN}_{humidifier}")
-            self._abort_if_unique_id_configured()
+                await self.async_set_unique_id(f"{DOMAIN}_{humidifier}")
+                self._abort_if_unique_id_configured()
 
-            return self.async_create_entry(
-                title=user_input.get(CONF_NAME) or DEFAULT_NAME,
-                data={
-                    CONF_NAME: user_input.get(CONF_NAME) or DEFAULT_NAME,
-                    CONF_HUMIDIFIER: humidifier,
-                    CONF_FAN: user_input.get(CONF_FAN),
-                    CONF_BATHROOM_HUMIDITY: user_input.get(CONF_BATHROOM_HUMIDITY),
-                    CONF_ROOM_HUMIDITY: user_input.get(CONF_ROOM_HUMIDITY),
-                    CONF_PREFIX: prefix,
-                },
-            )
+                return self.async_create_entry(
+                    title=user_input.get(CONF_NAME) or DEFAULT_NAME,
+                    data={
+                        CONF_NAME: user_input.get(CONF_NAME) or DEFAULT_NAME,
+                        CONF_HUMIDIFIER: humidifier,
+                        CONF_FAN: user_input.get(CONF_FAN),
+                        CONF_BATHROOM_HUMIDITY: user_input.get(CONF_BATHROOM_HUMIDITY),
+                        CONF_ROOM_HUMIDITY: user_input.get(CONF_ROOM_HUMIDITY),
+                        CONF_PREFIX: prefix,
+                    },
+                )
 
-        return self.async_show_form(step_id="user", data_schema=_user_schema(), errors=errors)
+        return self.async_show_form(
+            step_id="user",
+            data_schema=_user_schema(),
+            errors=errors,
+        )
 
     @staticmethod
     @callback
-    def async_get_options_flow(config_entry: config_entries.ConfigEntry):
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> SmartDehumidifierOptionsFlow:
         return SmartDehumidifierOptionsFlow(config_entry)
 
 
 class SmartDehumidifierOptionsFlow(config_entries.OptionsFlow):
+    """Handle options."""
+
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         self.config_entry = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
+        errors: dict[str, str] = {}
+
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            errors = await _validate_entities(self.hass, user_input)
+            if not errors:
+                return self.async_create_entry(title="", data=user_input)
 
         data = {**self.config_entry.data, **self.config_entry.options}
         return self.async_show_form(
@@ -101,15 +154,21 @@ class SmartDehumidifierOptionsFlow(config_entries.OptionsFlow):
                         selector.EntitySelectorConfig(domain=["switch", "fan"])
                     ),
                     vol.Optional(
-                        CONF_BATHROOM_HUMIDITY, default=data.get(CONF_BATHROOM_HUMIDITY)
+                        CONF_BATHROOM_HUMIDITY,
+                        default=data.get(CONF_BATHROOM_HUMIDITY),
                     ): selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="sensor", device_class=["humidity"])
+                        selector.EntitySelectorConfig(
+                            domain="sensor", device_class=["humidity"]
+                        )
                     ),
                     vol.Optional(
                         CONF_ROOM_HUMIDITY, default=data.get(CONF_ROOM_HUMIDITY)
                     ): selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="sensor", device_class=["humidity"])
+                        selector.EntitySelectorConfig(
+                            domain="sensor", device_class=["humidity"]
+                        )
                     ),
                 }
             ),
+            errors=errors,
         )
