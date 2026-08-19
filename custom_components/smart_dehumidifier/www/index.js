@@ -1,5 +1,5 @@
 /* Smart Dehumidifier card — self-contained entry for /smart_dehumidifier_files/index.js */
-export const SMART_DEHUMIDIFIER_VERSION = '1.8.10';
+export const SMART_DEHUMIDIFIER_VERSION = '1.9.0';
 console.info(
   `%c Smart Dehumidifier %c v${SMART_DEHUMIDIFIER_VERSION} `,
   'background:#0f1720;color:#7dd3fc;padding:2px 8px;border-radius:8px 0 0 8px;font-weight:700;',
