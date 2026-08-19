@@ -1,12 +1,19 @@
-"""Serve Lovelace card + auto-register/update resource with ?v=VERSION."""
+"""Serve Lovelace card + auto-register/update resource with ?v=VERSION.
+
+Uses both:
+- add_extra_js_url (reliable load of custom element without manual resource)
+- Lovelace resource create/update (for storage-mode dashboards)
+"""
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from pathlib import Path
 
+from homeassistant.components.frontend import add_extra_js_url
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import Event, HomeAssistant
-from homeassistant.helpers.event import async_call_later
 
 from .const import DOMAIN, VERSION
 
@@ -20,7 +27,7 @@ _registered_path = False
 
 
 async def async_register_frontend(hass: HomeAssistant) -> None:
-    """Register static path and ensure Lovelace resource has current ?v=."""
+    """Register static path, inject JS, and ensure Lovelace resource has current ?v=."""
     global _registered_path
 
     src = Path(__file__).resolve().parent / "www"
@@ -30,8 +37,6 @@ async def async_register_frontend(hass: HomeAssistant) -> None:
 
     if not _registered_path:
         try:
-            from homeassistant.components.http import StaticPathConfig
-
             await hass.http.async_register_static_paths(
                 [StaticPathConfig(URL_BASE, str(src), False)]
             )
@@ -44,16 +49,31 @@ async def async_register_frontend(hass: HomeAssistant) -> None:
                 _LOGGER.exception("Static path failed: %s", err)
                 return
 
-    async def _ensure(_now=None) -> None:
+    # Critical: inject module so custom element registers even without Lovelace resource
+    try:
+        add_extra_js_url(hass, CARD_URL_VERSIONED)
+        _LOGGER.debug("SD card extra JS: %s", CARD_URL_VERSIONED)
+    except Exception as err:
+        _LOGGER.warning("add_extra_js_url failed: %s", err)
+
+    async def _ensure_lovelace_resource(delay: float) -> None:
+        await asyncio.sleep(delay)
         await _async_ensure_resource(hass)
 
     if hass.is_running:
-        async_call_later(hass, 2, lambda now: hass.async_create_task(_ensure()))
-        async_call_later(hass, 15, lambda now: hass.async_create_task(_ensure()))
+        hass.async_create_task(
+            _ensure_lovelace_resource(2), name="smart_dehumidifier_resource_ensure"
+        )
+        hass.async_create_task(
+            _ensure_lovelace_resource(15), name="smart_dehumidifier_resource_retry"
+        )
     else:
 
         async def _on_start(_event: Event) -> None:
-            async_call_later(hass, 5, lambda now: hass.async_create_task(_ensure()))
+            hass.async_create_task(
+                _ensure_lovelace_resource(2),
+                name="smart_dehumidifier_resource_start",
+            )
 
         hass.bus.async_listen_once("homeassistant_started", _on_start)
 

@@ -1,7 +1,7 @@
-import './dehumidifier-card.js?v=1.8.0';
-import './dehumidifier-editor.js?v=1.8.0';
+import './dehumidifier-card.js?v=1.8.2';
+import './dehumidifier-editor.js?v=1.8.2';
 
-export const SMART_DEHUMIDIFIER_VERSION = '1.8.0';
+export const SMART_DEHUMIDIFIER_VERSION = '1.8.2';
 
 console.info(
   `%c Smart Dehumidifier %c v${SMART_DEHUMIDIFIER_VERSION} `,

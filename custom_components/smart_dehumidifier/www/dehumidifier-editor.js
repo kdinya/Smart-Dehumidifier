@@ -1,6 +1,6 @@
-import { html, css, LitElement } from './files/lit-proxy.js?v=1.8.0';
-import { EDITOR_SCHEMA, ENTITY_FIELDS } from './visual-editor-config.js?v=1.8.0';
-import { t, getLang } from './i18n.js?v=1.8.0';
+import { html, css, LitElement } from './files/lit-proxy.js?v=1.8.2';
+import { EDITOR_SCHEMA, ENTITY_FIELDS } from './visual-editor-config.js?v=1.8.2';
+import { t, getLang } from './i18n.js?v=1.8.2';
 
 const STORAGE_KEY = 'dh-editor-open-sections-v8';
 const SECTION_I18N = {
