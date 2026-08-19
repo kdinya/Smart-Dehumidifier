@@ -402,8 +402,13 @@ class SmartDehumidifierCoordinator:
         self._manual_active = True
         self._pause_active = False
 
-        def _expired(_now):
-            self.hass.async_create_task(self._on_manual_expired())
+        # Must be a coroutine function (not a plain `def` calling
+        # hass.async_create_task) — otherwise Home Assistant runs it in a
+        # background executor thread and hass.async_create_task() raises
+        # "calls hass.async_create_task from a thread other than the event
+        # loop", silently dropping the manual-mode expiry.
+        async def _expired(_now):
+            await self._on_manual_expired()
 
         self._cancel_manual()
         self._manual_cancel = async_call_later(
@@ -415,8 +420,8 @@ class SmartDehumidifierCoordinator:
         self._pause_active = True
         self._manual_active = False
 
-        def _expired(_now):
-            self.hass.async_create_task(self._on_pause_expired())
+        async def _expired(_now):
+            await self._on_pause_expired()
 
         self._cancel_pause()
         self._pause_cancel = async_call_later(

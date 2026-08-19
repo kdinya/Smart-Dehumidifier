@@ -1,11 +1,9 @@
 # Changelog
 
-## 2.0.0 — 2026-08-19
+## 2.0.1 — 2026-08-19
 
 ### Fixed package release
-- Release from Smart-Dehumidifier-fixed archive
-- Card resource sync to current version URL
-- Static path + /local copy
+- Release from Smart-Dehumidifier-fixed (1) archive
 
 ## 1.8.1 — 2026-08-18
 
