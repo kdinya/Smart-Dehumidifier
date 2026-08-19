@@ -1,9 +1,8 @@
-"""Serve Lovelace card and register it reliably on HA 2024–2026.
+"""Register static files + Lovelace resource for the card.
 
-Strategy (in order):
-1. Static path /smart_dehumidifier_files → www/
-2. add_extra_js_url (loads module into frontend without manual resource)
-3. Lovelace storage resource create/update (after async_load, HA 2025.2+ safe)
+Resource URL (exactly what appears in Settings → Dashboards → Resources):
+  /smart_dehumidifier_files/index.js?v=<VERSION>
+  type: module
 """
 
 from __future__ import annotations
@@ -21,77 +20,107 @@ from .const import DOMAIN, VERSION
 _LOGGER = logging.getLogger(__name__)
 
 URL_BASE = f"/{DOMAIN}_files"
-CARD_PATH = f"{URL_BASE}/smart-dehumidifier.js"
-CARD_URL_VERSIONED = f"{CARD_PATH}?v={VERSION}"
+# User-facing resource path (must match what appears in Resources panel)
+CARD_RESOURCE_URL = f"{URL_BASE}/index.js?v={VERSION}"
 
 _registered_path = False
 _extra_js_added = False
 
 
 async def async_register_frontend(hass: HomeAssistant) -> None:
-    """Register static files, inject JS, schedule Lovelace resource ensure."""
+    """Serve www/ and ensure Lovelace resource exists."""
     global _registered_path, _extra_js_added
 
     src = Path(__file__).resolve().parent / "www"
-    card_file = src / "index.js"
-    if not card_file.is_file():
-        _LOGGER.error("Smart Dehumidifier card missing: %s", card_file)
+    index_js = src / "index.js"
+    bundle_js = src / "smart-dehumidifier.js"
+    if not index_js.is_file() or not bundle_js.is_file():
+        _LOGGER.error(
+            "SD card files missing (need index.js + smart-dehumidifier.js) in %s", src
+        )
         return
 
+    # 1) Static HTTP path
     if not _registered_path:
         try:
             await hass.http.async_register_static_paths(
                 [StaticPathConfig(URL_BASE, str(src), False)]
             )
             _registered_path = True
-            _LOGGER.info("SD static path registered: %s → %s", URL_BASE, src)
+            _LOGGER.info("SD static path: %s → %s", URL_BASE, src)
         except Exception as err:  # noqa: BLE001
-            msg = str(err).lower()
-            if "already" in msg or "exists" in msg:
+            if "already" in str(err).lower() or "exists" in str(err).lower():
                 _registered_path = True
             else:
                 _LOGGER.exception("SD static path failed: %s", err)
                 return
 
+    # 2) Inject module into frontend (works even if Resources UI fails)
     if not _extra_js_added:
         try:
-            add_extra_js_url(hass, CARD_URL_VERSIONED)
+            add_extra_js_url(hass, CARD_RESOURCE_URL)
             _extra_js_added = True
-            _LOGGER.info("SD card injected via add_extra_js_url: %s", CARD_URL_VERSIONED)
+            _LOGGER.info("SD add_extra_js_url: %s", CARD_RESOURCE_URL)
         except Exception as err:  # noqa: BLE001
             _LOGGER.warning("SD add_extra_js_url failed: %s", err)
 
-    async def _retry_chain() -> None:
-        for delay in (1, 3, 8, 20, 45):
+    # 3) Persist into Lovelace Resources (storage mode)
+    async def _chain() -> None:
+        delays = (0.5, 2, 5, 10, 20, 40, 60)
+        for delay in delays:
             await asyncio.sleep(delay)
-            ok = await _async_ensure_resource(hass)
-            if ok:
+            result = await _async_ensure_lovelace_resource(hass)
+            if result == "ok":
                 return
+            if result == "yaml":
+                _LOGGER.error(
+                    "SD: Lovelace resources are in YAML mode — cannot auto-create. "
+                    "Add manually to configuration.yaml / ui-lovelace.yaml:\n"
+                    "  resources:\n"
+                    "    - url: %s\n"
+                    "      type: module",
+                    CARD_RESOURCE_URL,
+                )
+                return
+        _LOGGER.error(
+            "SD: failed to create Lovelace resource after retries. "
+            "Add manually in Settings → Dashboards → Resources:\n"
+            "  URL: %s\n"
+            "  Type: JavaScript Module",
+            CARD_RESOURCE_URL,
+        )
 
     if hass.is_running:
-        hass.async_create_task(_retry_chain(), name="smart_dehumidifier_resource_chain")
+        hass.async_create_task(_chain(), name="sd_lovelace_resource")
     else:
 
         async def _on_start(_event: Event) -> None:
-            hass.async_create_task(
-                _retry_chain(), name="smart_dehumidifier_resource_chain_start"
-            )
+            hass.async_create_task(_chain(), name="sd_lovelace_resource_start")
 
         hass.bus.async_listen_once("homeassistant_started", _on_start)
 
 
-def _get_resources(hass: HomeAssistant):
-    """Return Lovelace ResourceStorageCollection (HA 2024 / 2025.2+)."""
+def _get_resource_collection(hass: HomeAssistant):
+    """Return Lovelace resource collection or None."""
+    # Prefer LOVELACE_DATA HassKey (HA 2025+)
+    try:
+        from homeassistant.components.lovelace.const import LOVELACE_DATA
+
+        data = hass.data.get(LOVELACE_DATA)
+        if data is not None:
+            return getattr(data, "resources", None)
+    except Exception:  # noqa: BLE001
+        pass
+
     lovelace = hass.data.get("lovelace")
     if lovelace is None:
         return None
 
-    # HA 2025.2+: lovelace.resources (object attribute)
-    resources = getattr(lovelace, "resources", None)
-    if resources is not None:
-        return resources
+    # LovelaceData object
+    if hasattr(lovelace, "resources"):
+        return lovelace.resources
 
-    # Older: dict-style access
+    # Legacy dict
     if isinstance(lovelace, dict):
         return lovelace.get("resources")
 
@@ -101,34 +130,33 @@ def _get_resources(hass: HomeAssistant):
         return None
 
 
-async def _async_ensure_resource(hass: HomeAssistant) -> bool:
-    """Create or update Lovelace module resource. Returns True if present."""
-    resources = _get_resources(hass)
+async def _async_ensure_lovelace_resource(hass: HomeAssistant) -> str:
+    """Create/update resource. Returns 'ok' | 'yaml' | 'retry'."""
+    resources = _get_resource_collection(hass)
     if resources is None:
-        _LOGGER.debug(
-            "SD: lovelace resources not ready yet. "
-            "Add manually if needed: %s (JavaScript Module)",
-            CARD_URL_VERSIONED,
-        )
-        return False
+        _LOGGER.debug("SD: lovelace resources not available yet")
+        return "retry"
 
-    # CRITICAL on HA 2025+: load from disk before items/create
+    # YAML collection has no create
+    if not hasattr(resources, "async_create_item"):
+        return "yaml"
+
+    # Force load from disk (HA 2025+)
     try:
-        if hasattr(resources, "async_load") and not getattr(resources, "loaded", False):
-            await resources.async_load()
+        if hasattr(resources, "async_load"):
+            loaded = getattr(resources, "loaded", False)
+            if not loaded:
+                await resources.async_load()
+                if hasattr(resources, "loaded"):
+                    resources.loaded = True
     except Exception as err:  # noqa: BLE001
         _LOGGER.debug("SD resources.async_load: %s", err)
-        try:
-            if hasattr(resources, "async_load"):
-                await resources.async_load()
-        except Exception:  # noqa: BLE001
-            pass
 
     try:
         items = list(resources.async_items()) if hasattr(resources, "async_items") else []
     except Exception as err:  # noqa: BLE001
-        _LOGGER.debug("SD async_items failed: %s", err)
-        return False
+        _LOGGER.debug("SD async_items: %s", err)
+        return "retry"
 
     found_id = None
     found_url = None
@@ -136,44 +164,36 @@ async def _async_ensure_resource(hass: HomeAssistant) -> bool:
         if not isinstance(item, dict):
             continue
         url = str(item.get("url") or "")
-        if URL_BASE in url or "smart_dehumidifier" in url:
+        # Match any previous SD resource URLs
+        if (
+            URL_BASE in url
+            or "smart_dehumidifier" in url
+            or "smart-dehumidifier" in url
+        ):
             found_id = item.get("id")
             found_url = url
             break
 
-    if found_url == CARD_URL_VERSIONED:
-        _LOGGER.info("SD Lovelace resource OK: %s", CARD_URL_VERSIONED)
-        return True
+    if found_url == CARD_RESOURCE_URL:
+        _LOGGER.info("SD Lovelace resource already present: %s", CARD_RESOURCE_URL)
+        return "ok"
 
-    payload = {"res_type": "module", "url": CARD_URL_VERSIONED}
+    payload = {"res_type": "module", "url": CARD_RESOURCE_URL}
 
-    if found_id is not None and hasattr(resources, "async_update_item"):
+    if found_id is not None:
         try:
             await resources.async_update_item(found_id, payload)
-            _LOGGER.info("SD Lovelace resource UPDATED: %s → %s", found_url, CARD_URL_VERSIONED)
-            return True
+            _LOGGER.info(
+                "SD Lovelace resource UPDATED: %s → %s", found_url, CARD_RESOURCE_URL
+            )
+            return "ok"
         except Exception as err:  # noqa: BLE001
             _LOGGER.warning("SD resource update failed: %s", err)
 
-    if found_url is None and hasattr(resources, "async_create_item"):
-        try:
-            await resources.async_create_item(payload)
-            _LOGGER.info("SD Lovelace resource CREATED: %s", CARD_URL_VERSIONED)
-            return True
-        except Exception as err:  # noqa: BLE001
-            _LOGGER.warning(
-                "SD resource create failed (%s). Add manually: %s (module)",
-                err,
-                CARD_URL_VERSIONED,
-            )
-            return False
-
-    if found_url and found_url != CARD_URL_VERSIONED:
-        try:
-            await resources.async_create_item(payload)
-            _LOGGER.info("SD Lovelace resource added (old kept): %s", CARD_URL_VERSIONED)
-            return True
-        except Exception as err:  # noqa: BLE001
-            _LOGGER.warning("SD could not add resource: %s", err)
-
-    return False
+    try:
+        await resources.async_create_item(payload)
+        _LOGGER.info("SD Lovelace resource CREATED: %s", CARD_RESOURCE_URL)
+        return "ok"
+    except Exception as err:  # noqa: BLE001
+        _LOGGER.warning("SD resource create failed: %s", err)
+        return "retry"
