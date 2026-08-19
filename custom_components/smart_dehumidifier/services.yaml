@@ -1,6 +1,6 @@
 register_card:
-  name: Register card resource
-  description: Force create/update Lovelace resource for the Smart Dehumidifier card
+  name: Register card
+  description: Force-register / update the Lovelace card resource
 manual_toggle:
   name: Manual toggle
   description: Cycle manual/pause mode
