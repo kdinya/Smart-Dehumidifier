@@ -1,5 +1,5 @@
-import { t } from '../i18n.js?v=1.8.4';
-import { html } from '../files/lit-proxy.js?v=1.8.4';
+import { t } from '../i18n.js';
+import { html } from '../files/lit-proxy.js';
 
 import {
   toFiniteNumber,
@@ -13,7 +13,7 @@ import {
   resolveSdEntities,
   DEFAULT_LAYOUT_BASE_WIDTH,
   DEFAULT_CONTROLS_MAX_WIDTH,
-} from '../dh-utils.js?v=1.8.4';
+} from '../dh-utils.js';
 
 const PANEL_BASE_WIDTH = 240;
 const DEFAULT_TARGET = 50;

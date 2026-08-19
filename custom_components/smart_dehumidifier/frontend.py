@@ -21,7 +21,7 @@ from .const import DOMAIN, VERSION
 _LOGGER = logging.getLogger(__name__)
 
 URL_BASE = f"/{DOMAIN}_files"
-CARD_PATH = f"{URL_BASE}/index.js"
+CARD_PATH = f"{URL_BASE}/smart-dehumidifier.js"
 CARD_URL_VERSIONED = f"{CARD_PATH}?v={VERSION}"
 
 _registered_path = False
