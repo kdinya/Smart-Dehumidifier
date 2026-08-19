@@ -1,6 +1,7 @@
-"""Serve Lovelace card + auto-register/update resource with ?v=VERSION.
+"""Serve card: static path + extra JS module + Lovelace resource (v1.5.2 style).
 
-Restored from working v1.5.2 logic (static path + Lovelace resource create/update).
+add_extra_js_url ensures the card loads even when Resources panel entry
+was not created. Resource create/update still runs like v1.5.2.
 """
 
 from __future__ import annotations
@@ -8,6 +9,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from homeassistant.components.frontend import add_extra_js_url
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import Event, HomeAssistant
 from homeassistant.helpers.event import async_call_later
 
@@ -20,21 +23,23 @@ CARD_URL = f"{URL_BASE}/index.js"
 CARD_URL_VERSIONED = f"{CARD_URL}?v={VERSION}"
 
 _registered_path = False
+_extra_js_added = False
 
 
 async def async_register_frontend(hass: HomeAssistant) -> None:
-    """Register static path and ensure Lovelace resource has current ?v=."""
-    global _registered_path
+    """Register static path, inject module, ensure Lovelace resource."""
+    global _registered_path, _extra_js_added
 
     src = Path(__file__).resolve().parent / "www"
     if not src.is_dir() or not (src / "index.js").is_file():
         _LOGGER.error("Card www/ missing at %s", src)
         return
+    if not (src / "smart-dehumidifier.js").is_file():
+        _LOGGER.error("Card bundle missing: %s/smart-dehumidifier.js", src)
+        return
 
     if not _registered_path:
         try:
-            from homeassistant.components.http import StaticPathConfig
-
             await hass.http.async_register_static_paths(
                 [StaticPathConfig(URL_BASE, str(src), False)]
             )
@@ -47,10 +52,18 @@ async def async_register_frontend(hass: HomeAssistant) -> None:
                 _LOGGER.exception("Static path failed: %s", err)
                 return
 
+    # Critical: load card without relying on Resources panel
+    if not _extra_js_added:
+        try:
+            add_extra_js_url(hass, CARD_URL_VERSIONED)
+            _extra_js_added = True
+            _LOGGER.warning("SD card module injected: %s", CARD_URL_VERSIONED)
+        except Exception as err:
+            _LOGGER.exception("SD add_extra_js_url failed: %s", err)
+
     async def _ensure(_now=None) -> None:
         await _async_ensure_resource(hass)
 
-    # Same timing as v1.5.2
     if hass.is_running:
         async_call_later(hass, 2, lambda now: hass.async_create_task(_ensure()))
         async_call_later(hass, 15, lambda now: hass.async_create_task(_ensure()))
@@ -63,7 +76,7 @@ async def async_register_frontend(hass: HomeAssistant) -> None:
 
 
 async def _async_ensure_resource(hass: HomeAssistant) -> None:
-    """Create or UPDATE Lovelace resource to CARD_URL_VERSIONED (v1.5.2 logic)."""
+    """Create or UPDATE Lovelace resource (same as v1.5.2)."""
     resources = _find_resources(hass)
     if resources is None:
         _LOGGER.warning(
