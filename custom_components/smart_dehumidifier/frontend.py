@@ -1,11 +1,6 @@
-"""Card registration — fix for existing /smart_dehumidifier_files resource.
+"""Register card and FORCE-UPDATE Lovelace resource on every version bump.
 
-User still has resource: /smart_dehumidifier_files/index.js?v=1.5.2
-In 1.9.0 static path was removed → that URL 404 → card broken.
-
-1.9.1 restores static path so the EXISTING resource works again
-(query ?v=1.5.2 is ignored; file served is current self-contained index.js).
-Also copies to /local and tries to update the resource URL.
+On update, existing resource (e.g. ...?v=1.5.2) is rewritten to current VERSION URL.
 """
 
 from __future__ import annotations
@@ -22,18 +17,12 @@ from .const import DOMAIN, VERSION
 
 _LOGGER = logging.getLogger(__name__)
 
-# Old path (user's existing resource from v1.5.2)
 URL_BASE = f"/{DOMAIN}_files"
-FILES_CARD = f"{URL_BASE}/index.js"
-FILES_CARD_VERSIONED = f"{FILES_CARD}?v={VERSION}"
+# Canonical resource URL — always current version
+CARD_URL = f"{URL_BASE}/index.js?v={VERSION}"
 
-# New path via /local
 LOCAL_DIR = "smart_dehumidifier"
-LOCAL_CARD = f"/local/{LOCAL_DIR}/index.js"
-LOCAL_CARD_VERSIONED = f"{LOCAL_CARD}?v={VERSION}"
-
-# Prefer updating resource to this
-PREFERRED_URL = LOCAL_CARD_VERSIONED
+LOCAL_CARD_URL = f"/local/{LOCAL_DIR}/index.js?v={VERSION}"
 
 _registered_path = False
 
@@ -47,22 +36,21 @@ async def async_register_frontend(hass: HomeAssistant) -> None:
         _LOGGER.error("SD card missing: %s", index_js)
         return
 
-    # 1) Restore static path — CRITICAL for existing ?v=1.5.2 resource
+    # Static path so /smart_dehumidifier_files/index.js is served
     if not _registered_path:
         try:
             await hass.http.async_register_static_paths(
                 [StaticPathConfig(URL_BASE, str(src), False)]
             )
             _registered_path = True
-            _LOGGER.warning("SD static path restored: %s → %s", URL_BASE, src)
+            _LOGGER.warning("SD static path: %s → %s", URL_BASE, src)
         except Exception as err:
             if "already" in str(err).lower() or "exists" in str(err).lower():
                 _registered_path = True
-                _LOGGER.warning("SD static path already registered")
             else:
                 _LOGGER.exception("SD static path failed: %s", err)
 
-    # 2) Copy to config/www for /local/...
+    # Also copy to /local for backup path
     dest_dir = Path(hass.config.path("www", LOCAL_DIR))
     dest_index = dest_dir / "index.js"
 
@@ -72,9 +60,8 @@ async def async_register_frontend(hass: HomeAssistant) -> None:
 
     try:
         await hass.async_add_executor_job(_copy)
-        _LOGGER.warning("SD card copied to %s", dest_index)
     except Exception as err:
-        _LOGGER.exception("SD copy to www failed: %s", err)
+        _LOGGER.warning("SD copy to www: %s", err)
 
     if not hass.services.has_service(DOMAIN, "register_card"):
 
@@ -84,24 +71,20 @@ async def async_register_frontend(hass: HomeAssistant) -> None:
             except Exception:
                 pass
             await _inject(hass)
-            result = await _ensure_resource(hass)
-            _LOGGER.warning("SD register_card → %s", result)
+            result = await _sync_resource(hass)
+            _LOGGER.warning("SD register_card → %s | %s", result, CARD_URL)
 
         hass.services.async_register(DOMAIN, "register_card", _handle)
 
     async def _boot(_now=None) -> None:
         await _inject(hass)
-        result = await _ensure_resource(hass)
-        _LOGGER.warning(
-            "SD boot → %s | static=%s local=%s",
-            result,
-            FILES_CARD_VERSIONED,
-            LOCAL_CARD_VERSIONED,
-        )
+        result = await _sync_resource(hass)
+        _LOGGER.warning("SD resource sync → %s | %s", result, CARD_URL)
 
     if hass.is_running:
         async_call_later(hass, 2, lambda now: hass.async_create_task(_boot()))
-        async_call_later(hass, 12, lambda now: hass.async_create_task(_boot()))
+        async_call_later(hass, 10, lambda now: hass.async_create_task(_boot()))
+        async_call_later(hass, 25, lambda now: hass.async_create_task(_boot()))
     else:
 
         async def _on_start(_event: Event) -> None:
@@ -112,26 +95,21 @@ async def async_register_frontend(hass: HomeAssistant) -> None:
 
 
 async def _inject(hass: HomeAssistant) -> None:
-    """Inject BOTH urls so old resource path and new path both load the card."""
     try:
         from homeassistant.components.frontend import (
             DATA_EXTRA_MODULE_URL,
             add_extra_js_url,
         )
-    except Exception as err:
-        _LOGGER.warning("SD frontend import: %s", err)
+    except Exception:
         return
-
     if DATA_EXTRA_MODULE_URL not in hass.data:
-        _LOGGER.warning("SD frontend not ready")
         return
-
-    for url in (FILES_CARD_VERSIONED, LOCAL_CARD_VERSIONED, FILES_CARD, LOCAL_CARD):
+    for url in (CARD_URL, LOCAL_CARD_URL, f"{URL_BASE}/index.js"):
         try:
             add_extra_js_url(hass, url)
-        except Exception as err:
-            _LOGGER.debug("SD inject %s: %s", url, err)
-    _LOGGER.warning("SD modules injected (files + local)")
+        except Exception:
+            pass
+    _LOGGER.warning("SD module injected: %s", CARD_URL)
 
 
 def _get_resources(hass: HomeAssistant):
@@ -153,12 +131,24 @@ def _get_resources(hass: HomeAssistant):
     return None
 
 
-async def _ensure_resource(hass: HomeAssistant) -> str:
-    """Update existing /smart_dehumidifier_files... resource to preferred URL."""
+def _is_our_resource(url: str) -> bool:
+    u = url.lower()
+    return (
+        "smart_dehumidifier" in u
+        or "smart-dehumidifier" in u
+        or "dehumidifier" in u and ("hacsfiles" in u or "/local/" in u or "_files" in u)
+    )
+
+
+async def _sync_resource(hass: HomeAssistant) -> str:
+    """Force resource URL to current CARD_URL (replaces ?v=1.5.2 etc.)."""
     resources = _get_resources(hass)
     if resources is None:
         return "no_lovelace"
     if not hasattr(resources, "async_create_item"):
+        _LOGGER.warning(
+            "SD YAML mode: set resource manually to %s (JavaScript Module)", CARD_URL
+        )
         return "yaml_mode"
 
     try:
@@ -166,62 +156,79 @@ async def _ensure_resource(hass: HomeAssistant) -> str:
             await resources.async_load()
             if hasattr(resources, "loaded"):
                 resources.loaded = True
-    except Exception:
-        pass
+    except Exception as err:
+        _LOGGER.debug("SD load resources: %s", err)
 
     try:
         items = list(resources.async_items()) if hasattr(resources, "async_items") else []
     except Exception as err:
-        _LOGGER.warning("SD async_items: %s", err)
-        items = []
+        _LOGGER.warning("SD async_items failed: %s", err)
+        return f"items_error:{err}"
 
-    found_id = None
-    found_url = None
+    our_items: list[tuple[str | None, str]] = []
     for item in items:
         if not isinstance(item, dict):
             continue
         url = str(item.get("url") or "")
-        if "dehumidifier" in url.lower() or "smart_dehumidifier" in url:
-            found_id = item.get("id")
-            found_url = url
-            break
+        if _is_our_resource(url):
+            our_items.append((item.get("id"), url))
 
-    # Already preferred
-    if found_url == PREFERRED_URL:
+    # Already correct
+    if any(url == CARD_URL for _, url in our_items):
+        # Remove duplicate old entries if any
+        for item_id, url in our_items:
+            if url != CARD_URL and item_id and hasattr(resources, "async_delete_item"):
+                try:
+                    await resources.async_delete_item(item_id)
+                    _LOGGER.warning("SD deleted old resource: %s", url)
+                except Exception as err:
+                    _LOGGER.debug("SD delete old: %s", err)
         return "ok"
 
-    payload = {"res_type": "module", "url": PREFERRED_URL}
+    payload = {"res_type": "module", "url": CARD_URL}
 
-    # Update the old 1.5.2 resource in place
-    if found_id is not None and hasattr(resources, "async_update_item"):
+    # Update first matching old entry (e.g. ?v=1.5.2 → ?v=1.9.2)
+    if our_items:
+        item_id, old_url = our_items[0]
+        if item_id and hasattr(resources, "async_update_item"):
+            try:
+                await resources.async_update_item(item_id, payload)
+                _LOGGER.warning("SD resource UPDATED: %s → %s", old_url, CARD_URL)
+                # Delete extra duplicates
+                for extra_id, extra_url in our_items[1:]:
+                    if extra_id and hasattr(resources, "async_delete_item"):
+                        try:
+                            await resources.async_delete_item(extra_id)
+                            _LOGGER.warning("SD deleted duplicate: %s", extra_url)
+                        except Exception:
+                            pass
+                return "updated"
+            except Exception as err:
+                _LOGGER.warning("SD update failed: %s", err)
+
+    # No existing entry — create
+    try:
+        await resources.async_create_item(payload)
+        _LOGGER.warning("SD resource CREATED: %s", CARD_URL)
+        return "created"
+    except Exception as err:
+        _LOGGER.warning("SD create failed: %s — add manually: %s", err, CARD_URL)
         try:
-            await resources.async_update_item(found_id, payload)
-            _LOGGER.warning("SD resource UPDATED: %s → %s", found_url, PREFERRED_URL)
-            return "updated"
-        except Exception as err:
-            _LOGGER.warning("SD update failed (%s), will try create", err)
-
-    # Create preferred if missing
-    if found_url is None or found_url != PREFERRED_URL:
-        try:
-            await resources.async_create_item(payload)
-            _LOGGER.warning("SD resource CREATED: %s", PREFERRED_URL)
-            return "created"
-        except Exception as err:
-            _LOGGER.warning("SD create failed: %s", err)
-            # Last resort: at least make sure old path resource has current version query
-            if found_id is not None and hasattr(resources, "async_update_item"):
-                try:
-                    await resources.async_update_item(
-                        found_id,
-                        {"res_type": "module", "url": FILES_CARD_VERSIONED},
-                    )
-                    _LOGGER.warning(
-                        "SD resource bumped to %s", FILES_CARD_VERSIONED
-                    )
-                    return "bumped_old"
-                except Exception as err2:
-                    _LOGGER.warning("SD bump old failed: %s", err2)
-            return f"error:{err}"
-
-    return "ok"
+            await hass.services.async_call(
+                "persistent_notification",
+                "create",
+                {
+                    "notification_id": "smart_dehumidifier_card",
+                    "title": "Smart Dehumidifier — ресурс картки",
+                    "message": (
+                        f"Оновіть або додайте в Resources:\n"
+                        f"`{CARD_URL}`\n"
+                        f"Type: JavaScript Module\n"
+                        f"Потім Ctrl+F5."
+                    ),
+                },
+                blocking=False,
+            )
+        except Exception:
+            pass
+        return f"error:{err}"
