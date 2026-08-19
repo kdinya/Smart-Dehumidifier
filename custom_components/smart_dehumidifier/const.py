@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 DOMAIN = "smart_dehumidifier"
-VERSION = "1.8.1"
+VERSION = "1.8.2"
 
 CONF_HUMIDIFIER = "humidifier_entity"
 CONF_FAN = "fan_entity"

@@ -85,6 +85,9 @@ class SmartDehumidifierCoordinator:
         # Filled by platforms after entity creation
         self.entities: dict[str, Any] = {}
 
+        # Entity update listeners (register/unregister on entity add/remove)
+        self._listeners: list = []
+
     @property
     def unique_prefix(self) -> str:
         return f"{self.prefix}_{self.entry.entry_id[:8]}"
@@ -128,15 +131,35 @@ class SmartDehumidifierCoordinator:
         await self.async_update_fan()
 
     async def async_unload(self) -> None:
-        """Cancel listeners and timers."""
+        """Cancel listeners, entity callbacks and timers (full cleanup on remove)."""
         for unsub in self._unsubs:
             unsub()
         self._unsubs.clear()
+        self._listeners.clear()
+        self.entities.clear()
         self._cancel_timers()
 
     def register_entity(self, key: str, entity: Any) -> None:
         """Called by platform entities after they are added."""
         self.entities[key] = entity
+
+    def add_listener(self, listener) -> None:
+        """Register an entity update callback (used on entity create)."""
+        if listener not in self._listeners:
+            self._listeners.append(listener)
+
+    def remove_listener(self, listener) -> None:
+        """Unregister an entity update callback (used on entity remove)."""
+        if listener in self._listeners:
+            self._listeners.remove(listener)
+
+    def _notify_listeners(self) -> None:
+        """Push state update to all registered entities."""
+        for listener in list(self._listeners):
+            try:
+                listener()
+            except Exception:  # noqa: BLE001
+                _LOGGER.debug("Listener failed", exc_info=True)
 
     def get_entity_id(self, key: str) -> str | None:
         ent = self.entities.get(key)

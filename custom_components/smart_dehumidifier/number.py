@@ -1,4 +1,7 @@
-"""Number platform for Smart Dehumidifier settings."""
+"""Number platform for Smart Dehumidifier settings.
+
+Created with the device; removed on unload via shared base entity lifecycle.
+"""
 
 from __future__ import annotations
 
@@ -6,7 +9,7 @@ from homeassistant.components.number import NumberEntity, NumberMode, RestoreNum
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfTime
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import DeviceInfo, EntityCategory
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
@@ -25,6 +28,7 @@ from .const import (
     KEY_RECOMMENDED,
 )
 from .coordinator import SmartDehumidifierCoordinator
+from .entity import SmartDehumidifierEntity
 
 
 async def async_setup_entry(
@@ -32,6 +36,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
+    """Create number entities when the device is added."""
     coordinator: SmartDehumidifierCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     entities = [
@@ -70,13 +75,11 @@ async def async_setup_entry(
         coordinator.register_entity(ent.key, ent)
 
 
-class SmartDehumidifierNumber(RestoreNumber, NumberEntity):
+class SmartDehumidifierNumber(SmartDehumidifierEntity, RestoreNumber, NumberEntity):
     """Configurable number with state restore across restarts."""
 
     _attr_entity_category = EntityCategory.CONFIG
-    _attr_has_entity_name = True
     _attr_mode = NumberMode.SLIDER
-    _attr_should_poll = False
 
     def __init__(
         self,
@@ -89,7 +92,7 @@ class SmartDehumidifierNumber(RestoreNumber, NumberEntity):
         step: float,
         unit: str | None,
     ) -> None:
-        self.coordinator = coordinator
+        super().__init__(coordinator)
         self.key = key
         self._attr_unique_id = f"{coordinator.entry.entry_id}_{key}"
         self._attr_name = name
@@ -99,17 +102,10 @@ class SmartDehumidifierNumber(RestoreNumber, NumberEntity):
         self._attr_native_unit_of_measurement = unit
         self._attr_native_value = default
         self._default = default
-        # Auto-related numbers hidden without room humidity sensor
         if key in AUTO_MODE_KEYS:
             self._attr_entity_registry_enabled_default = coordinator.auto_mode_available
         else:
             self._attr_entity_registry_enabled_default = True
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, coordinator.entry.entry_id)},
-            name=coordinator.name,
-            manufacturer="Smart Dehumidifier",
-            model="Virtual Controller",
-        )
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
