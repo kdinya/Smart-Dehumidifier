@@ -82,14 +82,22 @@ async def async_register_frontend(hass: HomeAssistant) -> None:
         _LOGGER.warning("SD resource sync → %s | %s", result, CARD_URL)
 
     if hass.is_running:
-        async_call_later(hass, 2, lambda now: hass.async_create_task(_boot()))
-        async_call_later(hass, 10, lambda now: hass.async_create_task(_boot()))
-        async_call_later(hass, 25, lambda now: hass.async_create_task(_boot()))
+        # Passing the coroutine function directly (instead of wrapping it in a
+        # plain lambda that calls hass.async_create_task) lets Home Assistant
+        # recognize it as an event-loop-safe job and run it on the event loop.
+        # A bare lambda is treated as a thread-executor job, and calling
+        # hass.async_create_task() from that executor thread raises
+        # "calls hass.async_create_task from a thread other than the event
+        # loop" — which silently aborts _boot() before it ever registers the
+        # Lovelace resource.
+        async_call_later(hass, 2, _boot)
+        async_call_later(hass, 10, _boot)
+        async_call_later(hass, 25, _boot)
     else:
 
         async def _on_start(_event: Event) -> None:
-            async_call_later(hass, 3, lambda now: hass.async_create_task(_boot()))
-            async_call_later(hass, 12, lambda now: hass.async_create_task(_boot()))
+            async_call_later(hass, 3, _boot)
+            async_call_later(hass, 12, _boot)
 
         hass.bus.async_listen_once("homeassistant_started", _on_start)
 
