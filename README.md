@@ -1,6 +1,6 @@
 # Smart Dehumidifier
 
-**Version 1.8.1** — production-ready custom integration for Home Assistant.
+**Version 1.9.1** — production-ready custom integration for Home Assistant.
 
 Intelligent control of a bathroom dehumidifier + optional fan, with automatic target humidity calculated from an adjacent room sensor.
 
@@ -28,9 +28,13 @@ Intelligent control of a bathroom dehumidifier + optional fan, with automatic ta
    - Fan switch / fan (optional)
    - Bathroom humidity sensor (optional)
    - Adjacent room humidity sensor (recommended for auto)
-6. Lovelace resource is usually auto-registered:
-   `/smart_dehumidifier_files/index.js` (JavaScript Module)  
-   Force refresh: Ctrl+F5
+6. After restart the card JS is served from:
+   - `/smart_dehumidifier_files/index.js` (integration static path)
+   - `/local/smart_dehumidifier/index.js?v=1.9.1` (copied to config/www)
+7. If the card shows an error, check **Settings → Dashboards → Resources**.
+   Prefer URL: `/local/smart_dehumidifier/index.js?v=1.9.1` (JavaScript Module).
+   If you still have old `/smart_dehumidifier_files/index.js?v=1.5.2` — edit it to the new URL or keep it (static path is restored).
+   Then Ctrl+F5.
 
 ## Lovelace card
 
